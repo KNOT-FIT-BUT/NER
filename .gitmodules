@@ -1,0 +1,3 @@
+[submodule "SharedKB"]
+	path = SharedKB
+	url = https://github.com/KNOT-FIT-BUT/SharedKB.git
