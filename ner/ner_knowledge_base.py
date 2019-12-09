@@ -176,15 +176,6 @@ class KnowledgeBase(ABC):
 
 			namedict_file.close()
 
-	@abstractmethod
-	def get_subnames(self, whole_names, ent_type_set, line):
-		'''
-		From a list of whole names for a given person, it creates a set of all possible subnames.
-		For example, for the name name "George Washington", it creates a set containing two subnames - "George" and "Washington".
-		'''
-
-		pass
-
 
 	def print_subnames(self):
 		'''

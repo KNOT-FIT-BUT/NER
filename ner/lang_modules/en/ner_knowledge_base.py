@@ -11,7 +11,7 @@ class KnowledgeBase(BaseKnowledgeBase):
 	def __init__(self, lang):
 		super().__init__(lang)
 
-
+	""" Not used - only for EN version tune and debug
 	def get_subnames(self, whole_names, ent_type_set, line):
 		'''
 		From a list of whole names for a given person, it creates a set of all possible subnames.
@@ -88,3 +88,4 @@ class KnowledgeBase(BaseKnowledgeBase):
 				self.fragments.add(remove_accent(match.replace("van", "Van")))
 
 		return names
+	"""

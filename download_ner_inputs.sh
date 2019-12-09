@@ -22,6 +22,6 @@ tar -xvf $TMP_FILE
 rm -f $TMP_FILE
 
 cd ..
-mv ner_namedict.pkl ner_namedict.pkl.bak
+mv ner_namedict.pkl ner_namedict.pkl.bak 2>/dev/null
 
 cd $PWD_COPY
