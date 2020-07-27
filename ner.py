@@ -36,30 +36,30 @@ import os
 import re
 import uuid
 
-from name_recognizer import name_recognizer as name_recognizer
-from figa import marker as figa
-from libs import dates
-from libs.utils import remove_accent, remove_accent_unicode, get_ner_logger
-from ner import configs
-from ner import ner_knowledge_base as base_ner_knowledge_base
-from ner.ner_loader import NerLoader
-from ner.context import Context
-from ner.entity import Entity
-from ner.entity_register import EntityRegister
+from .name_recognizer import name_recognizer as name_recognizer
+from .figa import marker as figa
+from .libs import dates
+from .libs.utils import remove_accent, remove_accent_unicode, get_ner_logger
+from .ner_lib import configs
+from .ner_lib import ner_knowledge_base as base_ner_knowledge_base
+from .ner_lib.ner_loader import NerLoader
+from .ner_lib.context import Context
+from .ner_lib.entity import Entity
+from .ner_lib.entity_register import EntityRegister
 
 
 # Pro debugování:
 import difflib, linecache, inspect
 
-from ner import debug
+from .ner_lib import debug
 debug.DEBUG_EN = False
-from ner.debug import print_dbg_en
+from .ner_lib.debug import print_dbg_en
 #
 
 module_logger = get_ner_logger()
 
 # a list of frequent titles, degrees etc. (Mayor, King, Sir, ...)
-F_TITLES = os.path.abspath(os.path.join(configs.SCRIPT_DIR, "/ner/inputs/freq_terms_filtred.all"))
+F_TITLES = os.path.abspath(os.path.join(configs.SCRIPT_DIR, "/ner_lib/inputs/freq_terms_filtred.all"))
 LIST_OF_TITLES = [line.strip() for line in open(F_TITLES)] if os.path.exists(F_TITLES) else []
 
 lng = None
@@ -367,7 +367,7 @@ def get_entities_from_figa(kb, input_string, lowercase, global_senses, register,
         if lowercase:
             lower = "-lower"
 
-        path_to_figa_dict = os.path.dirname(os.path.realpath(__file__)) + "/ner/inputs/automata" + lower
+        path_to_figa_dict = os.path.dirname(os.path.realpath(__file__)) + "/ner_lib/inputs/automata" + lower
         if os.path.isfile(path_to_figa_dict + ".dct"):
             path_to_figa_dict += ".dct" # DARTS
         else:
