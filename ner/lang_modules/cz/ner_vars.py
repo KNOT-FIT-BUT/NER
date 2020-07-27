@@ -31,4 +31,4 @@ class NerVars(BaseNerVars):
 
     PROPER_NOUNS_PREPS = set()
 
-    VERBS = {" byl ", " byla ", " je "}
+    VERBS = {" byl ", " byla ", " je "} # <entity> <verb> <explanation of entity>
