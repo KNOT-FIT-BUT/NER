@@ -25,30 +25,25 @@ limitations under the License.
 #
 # Description: Loads a shared knowledge base.
 
-import sys
-sys.path.append("..")
-
 import itertools
 import os
 import pickle
-import re
-import unicodedata
-
-from abc import ABC, abstractmethod
-from .kb_daemon import KbDaemon
-from .configs import *
 from importlib.machinery import SourceFileLoader
-from libs.utils import remove_accent
-from libs.entities.entity_loader import EntityLoader
+
+from .kb_daemon import KbDaemon
+from .configs import DIRPATH_KB_DAEMON, INPUTS_DIR, KB_MULTIVALUE_DELIM
+from ..libs.utils import remove_accent
+from ..libs.entities.entity_loader import EntityLoader
 # Pro debugování:
-from .debug import print_dbg, print_dbg_en, cur_inspect
+from .debug import print_dbg_en
 
 
-class KnowledgeBase(ABC):
+class KnowledgeBase():
 	def __init__(self, lang):
 		self.lang = lang
 		self.personUtils = EntityLoader.load(module = 'persons', lang = self.lang, initiate = 'Persons')
-    
+		self.path_kb = os.path.abspath(os.path.join(INPUTS_DIR, self.lang+"/KB_all.tsv"))
+	
 	'''
 	Třída zapouzdřující KB.
 	'''
@@ -59,7 +54,7 @@ class KnowledgeBase(ABC):
 		'''
 
 		KB_shm = SourceFileLoader('KB_shm', os.path.join(DIRPATH_KB_DAEMON,"KB_shm.py")).load_module()
-		self.kb_shm_name = kb_shm_name.encode()
+		self.kb_shm_name = kb_shm_name
 		self.kb_shm = KB_shm.KB_shm(self.kb_shm_name)
 		self.kb_daemon = None
 
@@ -77,16 +72,16 @@ class KnowledgeBase(ABC):
 					self.kb_shm.start()
 					if not self.checkVersion():
 						self.end()
-						self.__init__("/decipherKB-%s-daemon_shm-%s" % (self.lang, self.kb_shm.getVersionFromSrc(PATH_KB)))
+						self.init("/decipherKB-%s-daemon_shm-%s" % (self.lang, self.kb_shm.getVersionFromSrc(self.path_kb)))
 						return self.start()
 				else:
-					self.__init__("/decipherKB-%s-daemon_shm-%s" % (self.lang, self.kb_shm.getVersionFromSrc(PATH_KB)))
+					self.init("/decipherKB-%s-daemon_shm-%s" % (self.lang, self.kb_shm.getVersionFromSrc(self.path_kb)))
 					return self.start()
 			else:
 				if kb_daemon_run:
 					self.kb_shm.start()
 					if not self.checkVersion():
-						raise RuntimeError("\"%s\" has different version compared to \"%s\"." % (self.kb_shm_name, PATH_KB))
+						raise RuntimeError("\"%s\" has different version compared to \"%s\"." % (self.kb_shm_name, self.path_kb))
 				else:
 					self.kb_daemon = KbDaemon(self.kb_shm_name)
 					self.kb_daemon.start()
@@ -119,7 +114,7 @@ class KnowledgeBase(ABC):
 		'''
 		Zkontroluje, zda je ve sdílené paměti stejná verze KB jako v PATH_KB.
 		'''
-		return self.version() == self.kb_shm.getVersionFromSrc(PATH_KB)
+		return self.version() == self.kb_shm.getVersionFromSrc(self.path_kb)
 
 
 	def version(self):
@@ -134,15 +129,15 @@ class KnowledgeBase(ABC):
 		Dictionary asociates parts of person names with corresponding items of knowledge base.
 		'''
 
-		PATH_NAMEDICT = os.path.join(SCRIPT_DIR, "ner_namedict.pkl")
-		PATH_FRAGMENTS = os.path.join(SCRIPT_DIR, "ner_fragments.pkl")
+		PATH_NAMEDICT = os.path.join(INPUTS_DIR, self.lang+"ner_namedict.pkl")
+		PATH_FRAGMENTS = os.path.join(INPUTS_DIR, self.lang+"ner_fragments.pkl")
 
 		self.name_dict = {}
 		self.fragments = set()
 
 		# Proto aby se nemusela znova procházet KB, vytvoří se soubor PATH_NAMEDICT.
 		# Namedict se bude načítat z něj pokud PATH_KB bude starší než PATH_NAMEDICT - tím dojde k urychlení.
-		if (os.access(PATH_NAMEDICT, os.F_OK)) and (os.stat(PATH_KB).st_mtime < os.stat(PATH_NAMEDICT).st_mtime and os.path.getsize(PATH_NAMEDICT)):
+		if (os.access(PATH_NAMEDICT, os.F_OK)) and (os.stat(self.path_kb).st_mtime < os.stat(PATH_NAMEDICT).st_mtime and os.path.getsize(PATH_NAMEDICT)):
 			with open(PATH_NAMEDICT, 'rb') as namedict_file:
 				version, self.name_dict, self.fragments = pickle.load(namedict_file)
 		else:
