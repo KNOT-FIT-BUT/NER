@@ -287,7 +287,7 @@ class KnowledgeBase():
 		Returns an type of an entity at the line of the knowledge base represent as an ordered set of type
 		"""
 
-		return str(self.kb_shm.dataType(line))
+		return self.kb_shm.dataType(line)
 
 
 	def get_dates(self, line):
