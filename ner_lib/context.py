@@ -31,7 +31,7 @@ import numpy
 from . import entity as modEntity
 from . import ner_knowledge_base as base_ner_knowledge_base
 from .configs import KB_MULTIVALUE_DELIM
-from .lang_modules.en import dates
+from . import dates
 # </LOKÁLNÍ IMPORTY>
 
 class Context(object):

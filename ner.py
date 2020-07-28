@@ -35,7 +35,6 @@ import collections
 import os
 import re
 import uuid
-import imp
 
 # Pro debugování:
 import difflib, linecache, inspect
@@ -44,8 +43,9 @@ import difflib, linecache, inspect
 from .name_recognizer import name_recognizer as name_recognizer
 from .figa import marker as figa
 from .libs.utils import remove_accent, remove_accent_unicode, get_ner_logger
-from .ner_lib.configs import SCRIPT_DIR, INPUTS_DIR, LANGS_ALLOWED
+from .ner_lib.configs import INPUTS_DIR, LANGS_ALLOWED
 from .ner_lib import ner_knowledge_base as base_ner_knowledge_base
+from .ner_lib import dates as base_dates
 from .ner_lib.ner_loader import NerLoader
 from .ner_lib.context import Context
 from .ner_lib.entity import Entity
@@ -63,7 +63,7 @@ class Ner():
     def __init__(self, language, own_kb_daemon=False):
         self.language = language
         self.ner_vars = NerLoader.load(module = "ner_vars", lang = self.language, initiate = "NerVars")
-        self.dates = imp.load_source('KB_shm', os.path.join(SCRIPT_DIR, "lang_modules", self.language, "dates.py"))
+        self.dates = base_dates.importLanguageModule(self.language)
         self.figa_seek_names = None
         self.kb = None
         
