@@ -25,3 +25,5 @@ class NerVars(BaseNerVars):
     }
     
     PROPER_NOUNS_PREPS = set(['the', 'upon'])
+    
+    VERBS = {" is ", " are ", " was ", " were "}
