@@ -35,6 +35,7 @@ import collections
 import os
 import re
 import uuid
+import imp
 
 # Pro debugování:
 import difflib, linecache, inspect
@@ -42,9 +43,8 @@ import difflib, linecache, inspect
 # <LOKÁLNÍ IMPORTY>
 from .name_recognizer import name_recognizer as name_recognizer
 from .figa import marker as figa
-from .libs import dates
 from .libs.utils import remove_accent, remove_accent_unicode, get_ner_logger
-from .ner_lib import configs
+from .ner_lib.configs import SCRIPT_DIR, INPUTS_DIR, LANGS_ALLOWED
 from .ner_lib import ner_knowledge_base as base_ner_knowledge_base
 from .ner_lib.ner_loader import NerLoader
 from .ner_lib.context import Context
@@ -63,11 +63,12 @@ class Ner():
     def __init__(self, language, own_kb_daemon=False):
         self.language = language
         self.ner_vars = NerLoader.load(module = "ner_vars", lang = self.language, initiate = "NerVars")
+        self.dates = imp.load_source('KB_shm', os.path.join(SCRIPT_DIR, "lang_modules", self.language, "dates.py"))
         self.figa_seek_names = None
         self.kb = None
         
         # a list of frequent titles, degrees etc. (Mayor, King, Sir, ...)
-        self.F_TITLES = os.path.abspath(os.path.join(configs.SCRIPT_DIR, "/ner_lib/inputs/"+self.language+"/freq_terms_filtred.all"))
+        self.F_TITLES = os.path.abspath(os.path.join(INPUTS_DIR, self.language, "freq_terms_filtred.all"))
         self.LIST_OF_TITLES = [line.strip() for line in open(self.F_TITLES)] if os.path.exists(self.F_TITLES) else []
         
         # loading knowledge base
@@ -458,7 +459,7 @@ class Ner():
         debugChangesInEntities(entities, "removing entities without any sense")
 
         # searches for dates and intervals in the input
-        dates_and_intervals = dates.find_dates(input_string, split_interval=split_interval)
+        dates_and_intervals = self.dates.find_dates(input_string, split_interval=split_interval)
 
         # resolving overlapping dates and entities
         entity_offsets = set()
@@ -505,7 +506,7 @@ class Ner():
         debugChangesInEntities(entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
 
         # updating entities_and_dates
-        entities_and_dates = [e for e in entities_and_dates if isinstance(e, dates.Date) or e in entities]
+        entities_and_dates = [e for e in entities_and_dates if isinstance(e, self.dates.Date) or e in entities]
         debugChangesInEntities(entities_and_dates, "updating entities_and_dates")
 
         # finding unknown names
@@ -515,13 +516,13 @@ class Ner():
         # omitting entities without a sense
         if entities_and_dates:
             if not (print_all or print_score):
-                entities_and_dates = [e for e in entities_and_dates if isinstance(e, dates.Date) or e.has_preferred_sense() or e.is_name]
+                entities_and_dates = [e for e in entities_and_dates if isinstance(e, self.dates.Date) or e.has_preferred_sense() or e.is_name]
             else:
                 if print_all:
                     for e in entities_and_dates:
                         if isinstance(e, Entity):
                             e.set_preferred_sense(None)
-                entities_and_dates = [e for e in entities_and_dates if isinstance(e, dates.Date) or (e.is_coreference and e.partial_match_senses) or (not e.is_coreference and e.senses) or e.is_name]
+                entities_and_dates = [e for e in entities_and_dates if isinstance(e, self.dates.Date) or (e.is_coreference and e.partial_match_senses) or (not e.is_coreference and e.senses) or e.is_name]
         debugChangesInEntities(entities_and_dates, "omitting entities without a sense")
 
         if print_result:
@@ -655,7 +656,7 @@ def main():
     arguments = parser.parse_args()
     
     arguments.lang = arguments.lang.lower()
-    if arguments.lang not in configs.LANGS_ALLOWED:
+    if arguments.lang not in LANGS_ALLOWED:
         raise RuntimeError(f'Language "{arguments.lang}" is not supported yet.')
     
     if not debug.DEBUG_EN and arguments.debug:
