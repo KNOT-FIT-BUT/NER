@@ -134,6 +134,8 @@ class Persons(ABC):
 				subname_lower = subname.lower()
 
 				# skip invalid / forbidden names
+				if subname_lower == "":
+					continue
 				if subname_lower not in self.get_FORBIDDEN_NAMES() or subname_lower not in roles:
 					# normalize name to start with capital, including name with prefix (for example o'... => O'...)
 					subname = subname[0].upper() + subname[1:]
