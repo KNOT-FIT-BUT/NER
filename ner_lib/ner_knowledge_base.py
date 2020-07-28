@@ -42,7 +42,7 @@ class KnowledgeBase():
 	def __init__(self, lang):
 		self.lang = lang
 		self.personUtils = EntityLoader.load(module = 'persons', lang = self.lang, initiate = 'Persons')
-		self.path_kb = os.path.abspath(os.path.join(INPUTS_DIR, self.lang+"/KB_all.tsv"))
+		self.path_kb = os.path.abspath(os.path.join(INPUTS_DIR, self.lang, "KB_all.tsv"))
 	
 	'''
 	Třída zapouzdřující KB.
@@ -53,7 +53,7 @@ class KnowledgeBase():
 		Inicializace.
 		'''
 
-		KB_shm = SourceFileLoader('KB_shm', os.path.join(DIRPATH_KB_DAEMON,"KB_shm.py")).load_module()
+		KB_shm = SourceFileLoader('KB_shm', os.path.join(DIRPATH_KB_DAEMON, "KB_shm.py")).load_module()
 		self.kb_shm_name = kb_shm_name
 		self.kb_shm = KB_shm.KB_shm(self.kb_shm_name)
 		self.kb_daemon = None
@@ -83,7 +83,7 @@ class KnowledgeBase():
 					if not self.checkVersion():
 						raise RuntimeError("\"%s\" has different version compared to \"%s\"." % (self.kb_shm_name, self.path_kb))
 				else:
-					self.kb_daemon = KbDaemon(self.kb_shm_name)
+					self.kb_daemon = KbDaemon(self.path_kb, kb_shm_name=self.kb_shm_name)
 					self.kb_daemon.start()
 					self.kb_shm.start()
 
@@ -129,8 +129,8 @@ class KnowledgeBase():
 		Dictionary asociates parts of person names with corresponding items of knowledge base.
 		'''
 
-		PATH_NAMEDICT = os.path.join(INPUTS_DIR, self.lang+"ner_namedict.pkl")
-		PATH_FRAGMENTS = os.path.join(INPUTS_DIR, self.lang+"ner_fragments.pkl")
+		PATH_NAMEDICT = os.path.join(INPUTS_DIR, self.lang, "ner_namedict.pkl")
+		PATH_FRAGMENTS = os.path.join(INPUTS_DIR, self.lang, "ner_fragments.pkl")
 
 		self.name_dict = {}
 		self.fragments = set()

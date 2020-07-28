@@ -17,17 +17,17 @@ TMP_FILE=NER_ML_inputs.tgz
 
 # <languages>
 downloadNerInputs() {
-    local language="${1?}"
-    local url="${2?}"
-    
-    mkdir -p "${INPUTS_DIR}/${language}"
-    pushd "${INPUTS_DIR}/${language}"
-    wget -c "${url}" -O "${TMP_FILE}"
-    tar -xvf "${TMP_FILE}"
-    rm -f "${TMP_FILE}"
-    popd
-    
-    echo
+	local language="${1?}"
+	local url="${2?}"
+	
+	mkdir -p "${INPUTS_DIR}/${language}"
+	pushd "${INPUTS_DIR}/${language}"
+	wget -c "${url}" -O "${TMP_FILE}"
+	tar -xvf "${TMP_FILE}"
+	rm -f "${TMP_FILE}"
+	popd
+	
+	echo
 }
 
 downloadNerInputs 'cz' 'http://knot.fit.vutbr.cz/NAKI_CPK/NER_ML_inputs/NER_ML_inputs-KB_latest-dct.tgz'

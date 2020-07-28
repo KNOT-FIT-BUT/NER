@@ -6,7 +6,7 @@ import os
 LANGS_ALLOWED = set(['en', 'cz'])
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-INPUTS_DIR = os.path.dirname(os.path.join(SCRIPT_DIR, "inputs"))
+INPUTS_DIR = os.path.join(SCRIPT_DIR, "inputs")
 DIRPATH_KB_DAEMON = os.path.abspath(os.path.join(SCRIPT_DIR, "../SharedKB/var2"))
 PATH_KB_DAEMON = os.path.abspath(os.path.join(DIRPATH_KB_DAEMON, "decipherKB-daemon"))
 

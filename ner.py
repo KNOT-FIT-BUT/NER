@@ -39,7 +39,7 @@ import uuid
 # Pro debugování:
 import difflib, linecache, inspect
 
-# </LOKÁLNÍ IMPORTY>
+# <LOKÁLNÍ IMPORTY>
 from .name_recognizer import name_recognizer as name_recognizer
 from .figa import marker as figa
 from .libs import dates
@@ -71,7 +71,7 @@ class Ner():
         self.LIST_OF_TITLES = [line.strip() for line in open(self.F_TITLES)] if os.path.exists(self.F_TITLES) else []
         
         # loading knowledge base
-        self._init_knowledge_base()
+        self._init_knowledge_base(own_kb_daemon)
     
     def __del__(self):
         if self.kb:
@@ -411,7 +411,7 @@ class Ner():
             def __init__(self):
                 self.last_status_of_entities = None
             
-            def check(entities, responsible_line):
+            def check(self, entities, responsible_line):
                 if debug.DEBUG_EN:
                     if self.last_status_of_entities is not None:
                         new_status_of_entities = [e+"\n" for e in map(str, sorted(entities, key=lambda ent: ent.start_offset))]

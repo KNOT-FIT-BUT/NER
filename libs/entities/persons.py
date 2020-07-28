@@ -4,22 +4,25 @@
 # Author: Tomáš Volf, ivolf[at]fit.vutbr.cz
 
 import regex
-import libs.reUtils as reUtils
 from abc import ABC
 from libs.automataVariants import AutomataVariants
 from libs.utils import remove_accent
 
+# <LOKÁLNÍ IMPORTY>
+from .. import reUtils
+# </LOKÁLNÍ IMPORTY>
 
 class Persons(ABC):
 	# Common name preposition for all languages - it should not be completed or overriden in lang-specific modules
-	NAME_PREPOSITIONS = ["van der", "van", # Dutch / Flemish
-					     "von", "zu",      # Germany
-					     "de", "du",       # French
-					     "da",             # Italian or Portuguese
-					     "di",             # Italian or Spanish
-					     "dalla", "del", "dos", "el", "la", "le", "ben", "bin", "y", # http://prirucka.ujc.cas.cz/?id=326
-						]
-    # Common name prefixes for all languages - it should not be completed or overriden in lang-specific modules
+	NAME_PREPOSITIONS = [
+		"van der", "van", # Dutch / Flemish
+		"von", "zu",      # Germany
+		"de", "du",       # French
+		"da",             # Italian or Portuguese
+		"di",             # Italian or Spanish
+		"dalla", "del", "dos", "el", "la", "le", "ben", "bin", "y", # http://prirucka.ujc.cas.cz/?id=326
+	]
+	# Common name prefixes for all languages - it should not be completed or overriden in lang-specific modules
 	NAME_PREFIXES = ["d'", "o'"]             # French / Italian / Portuguese / Spanish
 
 	# overriden in lang-specific modules
@@ -29,7 +32,7 @@ class Persons(ABC):
 	# overriden in lang-specific modules
 	def get_ROLE_PREFIX(self):
 		return None
-    
+	
 	# it may be completed or overriden in lang-specific modules
 	def get_LOCATION_PREPOSITIONS(self):
 		return ["of"]
@@ -89,7 +92,7 @@ class Persons(ABC):
 		for name in src_names:
 			# remove all name flags
 			name = regex.sub(r"#lang=[^#|]*", "", name)
-            
+			
 			# normalize whitespaces
 			name = regex.sub('\s+', ' ', name)
 			name_with_location = name

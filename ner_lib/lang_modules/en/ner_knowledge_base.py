@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import sys
-sys.path.append("../..") 
-
 from ...ner_knowledge_base import KnowledgeBase as BaseKnowledgeBase
-from libs.utils import remove_accent
+#from ....libs.utils import remove_accent # Not used - only for EN version tune and debug
 
 class KnowledgeBase(BaseKnowledgeBase):
 	def __init__(self, lang):

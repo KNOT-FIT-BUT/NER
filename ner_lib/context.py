@@ -25,14 +25,14 @@ limitations under the License.
 #
 
 import sys
-sys.path.append("..")
-
 import numpy
+
+# <LOKÁLNÍ IMPORTY>
 from . import entity as modEntity
 from . import ner_knowledge_base as base_ner_knowledge_base
 from .configs import KB_MULTIVALUE_DELIM
-from libs import dates
-
+from ..libs import dates
+# </LOKÁLNÍ IMPORTY>
 
 class Context(object):
     """ Information about a context of a processed text. """

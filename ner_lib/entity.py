@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import name_recognizer.data_row as module_data_row
+from abc import ABC, abstractmethod
+
+# <LOKÁLNÍ IMPORTY>
 from . import ner_knowledge_base as base_ner_knowledge_base
 from . import context as modContext
 from . import entity_register
-from abc import ABC, abstractmethod
 from .configs import KB_MULTIVALUE_DELIM # !!! jen CZ addons
 from .ner_loader import NerLoader
-from libs.nationalities.nat_loader import NatLoader
-from libs.utils import ncr2unicode, remove_accent_unicode, get_ner_logger
+from ..libs.nationalities.nat_loader import NatLoader
+from ..libs.utils import ncr2unicode, remove_accent_unicode, get_ner_logger
+from ..name_recognizer import data_row as module_data_row
 
 from . import debug
 debug.DEBUG_EN = False
 from .debug import cur_inspect
+# <LOKÁLNÍ IMPORTY>
 
 module_logger = get_ner_logger()
 

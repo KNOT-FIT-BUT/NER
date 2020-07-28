@@ -17,6 +17,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+# Author: Jan Doležal, idolezal[at]fit.vutbr.cz
+# Modified by: Tomáš Volf, ivolf[at]fit.vutbr.cz
+
+# CZ version
+
 import sys
 import re
 import dateutil.parser as dparser
