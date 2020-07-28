@@ -30,12 +30,15 @@ import os
 import pickle
 from importlib.machinery import SourceFileLoader
 
+# <LOKÁLNÍ IMPORTY>
 from .kb_daemon import KbDaemon
 from .configs import DIRPATH_KB_DAEMON, INPUTS_DIR, KB_MULTIVALUE_DELIM
 from ..libs.utils import remove_accent
 from ..libs.entities.entity_loader import EntityLoader
+
 # Pro debugování:
 from .debug import print_dbg_en
+# </LOKÁLNÍ IMPORTY>
 
 
 class KnowledgeBase():

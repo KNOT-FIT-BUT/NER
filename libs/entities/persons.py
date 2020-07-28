@@ -5,10 +5,10 @@
 
 import regex
 from abc import ABC
-from libs.automataVariants import AutomataVariants
-from libs.utils import remove_accent
 
 # <LOKÁLNÍ IMPORTY>
+from ..automataVariants import AutomataVariants
+from ..utils import remove_accent
 from .. import reUtils
 # </LOKÁLNÍ IMPORTY>
 

@@ -8,9 +8,12 @@ import subprocess
 import tempfile
 import time
 
+# <LOKÁLNÍ IMPORTY>
 from .configs import PATH_KB_DAEMON
+
 # Pro debugování:
 from .debug import print_dbg, print_dbg_en
+# </LOKÁLNÍ IMPORTY>
 
 # # Timeouty v sekundách:
 Timeout_SharedKB_start = 300

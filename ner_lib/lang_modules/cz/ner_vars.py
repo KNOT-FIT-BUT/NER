@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+# <LOKÁLNÍ IMPORTY>
 from ...ner_vars import NerVars as BaseNerVars
+# </LOKÁLNÍ IMPORTY>
 
 class NerVars(BaseNerVars):
     # pronouns along with their type they refer to

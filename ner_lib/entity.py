@@ -16,7 +16,7 @@ from ..name_recognizer import data_row as module_data_row
 from . import debug
 debug.DEBUG_EN = False
 from .debug import cur_inspect
-# <LOKÁLNÍ IMPORTY>
+# </LOKÁLNÍ IMPORTY>
 
 module_logger = get_ner_logger()
 
