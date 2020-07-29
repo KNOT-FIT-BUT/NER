@@ -160,7 +160,7 @@ class KnowledgeBase():
 					whole_names.append(self.get_data_for(line, "NAME"))
 
 					# creates subnames
-					names = self.personUtils.get_normalized_subnames(whole_names, roles = self.get_data_for(line, "ROLE", separator = KB_MULTIVALUE_DELIM), separate_to_names = True)
+					names = self.personUtils.get_normalized_subnames(whole_names, roles = self.get_data_for(line, "ROLES", separator = KB_MULTIVALUE_DELIM), separate_to_names = True)
 
 					for name in names:
 						name = remove_accent(name).lower()
@@ -313,7 +313,9 @@ class KnowledgeBase():
 			nation = self.get_data_for(line, "ALIASES", separator = KB_MULTIVALUE_DELIM)
 			# nation.extend(self.get_data_for(line, "ADJECTIVAL FORM").split(KB_MULTIVALUE_DELIM)) # NOT present in GKB
 			nation.append(self.get_data_for(line, "NAME"))
-			nation.append(self.get_data_for(line, "COUNTRY"))
+			nation.append(self.get_data_for(line, "DISAMBIGUATION NAME"))
+			nation.append(self.get_data_for(line, "SHORT NAME"))
+			nation.append(self.get_data_for(line, "COUNTRY NAME"))
 		elif "person" in ent_type_set:
 			nation = self.get_data_for(line, "NATIONALITIES", separator = KB_MULTIVALUE_DELIM)
 		nation = set([nat.lower() for nat in nation if nat != ""])

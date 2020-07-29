@@ -168,8 +168,8 @@ class Entity(ABC):
         if(verb_index != -1):
             proffesions = []
             for s in self.senses:
-                if(self.kb.get_ent_type(s) in ["person", "person:artist", "person:fictional"]):
-                    proffesions = self.kb.get_data_for(s, "JOBS")
+                if "person" in self.kb.get_ent_type(s):
+                    proffesions = self.kb.get_data_for(s, "ROLES")
                     if(proffesions):
                         proffesions = proffesions.split(KB_MULTIVALUE_DELIM)
                         proffesions = [p for p in proffesions if sentence.find(" " + p + " ", verb_index) != -1]
@@ -179,8 +179,8 @@ class Entity(ABC):
             if(proffesions):
                 new_senses = []
                 for s in self.senses:
-                    if self.kb.get_ent_type(s) in ["person", "person:artist", "person:fictional"]:
-                        for proffesion in self.kb.get_data_for(s, "JOBS").split(KB_MULTIVALUE_DELIM):
+                    if "person" in self.kb.get_ent_type(s):
+                        for proffesion in self.kb.get_data_for(s, "ROLES").split(KB_MULTIVALUE_DELIM):
                             if(proffesion in proffesions):
                                 new_senses.append(s)
                                 break
@@ -228,11 +228,11 @@ class Entity(ABC):
             static_score = self.kb.get_score(i)
             context_score = 0
             # !!! TODO: merge location and geo? is it realy 'geo'?
-            if 'geo' in ent_type_set:
+            if ent_type_set & {"geographical", "location"}:
                 context_score = context.country_percentile(self.kb.get_data_for(i, "COUNTRY"))
             elif 'person' in ent_type_set:
                 context_score = context.person_percentile(i)
-            elif 'organisation' in ent_type_set or 'event'in ent_type_set:
+            elif 'organisation' in ent_type_set or 'event' in ent_type_set:
                 context_score = context.org_event_percentile(i, ent_type_set)
             else:
                 context_score = context.common_percentile(i, ent_type_set)

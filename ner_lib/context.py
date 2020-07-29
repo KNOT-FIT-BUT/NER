@@ -114,7 +114,7 @@ class Context(object):
                             if ent_type not in self.mentions[par]:
                                 self.mentions[par][ent_type] = {}
 
-                        if 'geo' in ent_type_set:
+                        if ent_type_set & {"geographical", "location"}:
                             # get location country name and aliases
                             name = ent.kb.get_data_for(ent.get_preferred_sense(), "NAME")
                             country = ent.kb.get_data_for(ent.get_preferred_sense(), "COUNTRY")
@@ -300,19 +300,20 @@ class Context(object):
 
 
     def org_event_percentile(self, candidate, ent_type_set):
+        # FIXME: Proč se mixuje 'organisation' a 'event'?
         par_index = self.paragraphs[self.paragraph_index]
 
         name = [self.kb.get_data_for(candidate, "NAME")]
         mentioned_in_par_score = self.mentioned_in_par(name, ent_type_set)
 
-        place = [self.kb.get_data_for(candidate, "LOCATION")]
-        place_score = self.mentioned_in_par(place, {'settlement'})
+        place = self.kb.get_data_for(candidate, "LOCATIONS").split(KB_MULTIVALUE_DELIM)
+        place_score = self.mentioned_in_par(place, {'settlement'}) # FIXME: 'settlement' vidím poprvé, má to nějaký důvod?
 
         org_date_score = 0
         if "organisation" in ent_type_set:
             org_dates = [self.kb.get_data_for(candidate, "FOUNDED"), self.kb.get_data_for(candidate, "CANCELLED")]
         else:
-            org_dates = [self.kb.get_data_for(candidate, "START"), self.kb.get_data_for(candidate, "END")]
+            org_dates = [self.kb.get_data_for(candidate, "START DATE"), self.kb.get_data_for(candidate, "END DATE")]
 
         for context_date in self.people_dates[par_index]:
             for org_date in org_dates:
