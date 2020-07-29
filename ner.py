@@ -697,7 +697,7 @@ def main():
         # reading input data from stdin
         else:
             input_string = sys.stdin.read()
-        input_string = input_string.strip()
+        input_string = input_string.rstrip()
         ner.recognize(input_string, print_all=arguments.all, print_score=arguments.score, lowercase=arguments.lowercase, remove=arguments.remove_accent, find_names=arguments.names)
 
 if __name__ == "__main__":
