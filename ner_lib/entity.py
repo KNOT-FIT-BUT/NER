@@ -357,6 +357,8 @@ class Entity(ABC):
             result += "coref"
         elif self.is_name:
             result += "name"
+#        elif self.display_uri: # TODO: Umožnit výstup v URI
+#            result += "uri"
         else:
             result += "kb"
         result += "\t" + self.input_string[self.start_offset:self.end_offset].replace('\n', ' ').replace('\r', '') + "\t"
