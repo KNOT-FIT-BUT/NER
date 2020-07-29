@@ -2,10 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import sys
-import os
 sys.path.append('/mnt/minerva1/nlp/projects/naki_cpk/xprext00/cz_ner/figa')
 from . import name_recognizer
-from .. import figa.marker as figa
+from ..figa import marker as figa
 
 nr = name_recognizer.NameRecognizer()
 

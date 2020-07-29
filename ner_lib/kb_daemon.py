@@ -7,12 +7,14 @@ import inspect
 import subprocess
 import tempfile
 import time
+import re
+import threading
 
 # <LOKÁLNÍ IMPORTY>
 from .configs import PATH_KB_DAEMON
 
 # Pro debugování:
-from .debug import print_dbg, print_dbg_en
+from .debug import print_dbg, cur_inspect
 # </LOKÁLNÍ IMPORTY>
 
 # # Timeouty v sekundách:

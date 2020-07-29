@@ -198,7 +198,6 @@ class Date(object):
 #
 
 def importLanguageModule(language):
-	package = __name__ if '.' in __name__ else '.' + __name__
-	return importlib.import_module(f"..lang_modules.{language}.dates", package)
+	return importlib.import_module(f".lang_modules.{language}.dates", __package__)
 
 # konec souboru dates.py

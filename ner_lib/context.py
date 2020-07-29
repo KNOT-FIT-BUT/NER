@@ -206,18 +206,19 @@ class Context(object):
         else:
             self.last_thing = entity
 
-    def mentioned_in_par(self, candidates, field):
+    def mentioned_in_par(self, candidates, ent_type_set):
         par_index = self.paragraphs[self.paragraph_index]
 
-        mentioned_in_par_score = 0
-        if field in self.mentions[par_index]:
-            for c in candidates:
-                if c in self.mentions[par_index][field]:
-                    mentioned_in_par_score =  self.mentions[par_index][field][c]
-                    break
-
-        if mentioned_in_par_score:
-            mentioned_in_par_score = mentioned_in_par_score * 100 / sum(self.mentions[par_index][field].values())
+        for ent_type in ent_type_set:
+            mentioned_in_par_score = 0
+            if ent_type in self.mentions[par_index]:
+                for c in candidates:
+                    if c in self.mentions[par_index][ent_type]:
+                        mentioned_in_par_score =  self.mentions[par_index][ent_type][c]
+                        break
+            
+            if mentioned_in_par_score:
+                mentioned_in_par_score = mentioned_in_par_score * 100 / sum(self.mentions[par_index][ent_type].values())
 
         return mentioned_in_par_score
 
@@ -268,7 +269,7 @@ class Context(object):
 
 
         person_name = [self.kb.get_data_for(candidate, "NAME")]
-        mentioned_in_par_score = self.mentioned_in_par(person_name, 'person')
+        mentioned_in_par_score = self.mentioned_in_par(person_name, {'person'})
 
         # summing up the scores
         result = numpy.average([people_nationality_score, people_date_score, people_profession_score, mentioned_in_par_score])
@@ -291,24 +292,24 @@ class Context(object):
         else:
             # computing and normalizing score for a given country
             return self.countries[self.paragraphs[self.paragraph_index]][country] * 100 / sum(self.countries[self.paragraphs[self.paragraph_index]].values())
-    def common_percentile(self, candidate, ent_type):
+    def common_percentile(self, candidate, ent_type_set):
         name = [self.kb.get_data_for(candidate, "NAME")]
-        mentioned_in_par_score = self.mentioned_in_par(name, ent_type)
+        mentioned_in_par_score = self.mentioned_in_par(name, ent_type_set)
 
         return mentioned_in_par_score
 
 
-    def org_event_percentile(self, candidate, ent_type):
+    def org_event_percentile(self, candidate, ent_type_set):
         par_index = self.paragraphs[self.paragraph_index]
 
         name = [self.kb.get_data_for(candidate, "NAME")]
-        mentioned_in_par_score = self.mentioned_in_par(name, ent_type)
+        mentioned_in_par_score = self.mentioned_in_par(name, ent_type_set)
 
         place = [self.kb.get_data_for(candidate, "LOCATION")]
-        place_score = self.mentioned_in_par(place, 'settlement')
+        place_score = self.mentioned_in_par(place, {'settlement'})
 
         org_date_score = 0
-        if ent_type == "organisation":
+        if "organisation" in ent_type_set:
             org_dates = [self.kb.get_data_for(candidate, "FOUNDED"), self.kb.get_data_for(candidate, "CANCELLED")]
         else:
             org_dates = [self.kb.get_data_for(candidate, "START"), self.kb.get_data_for(candidate, "END")]

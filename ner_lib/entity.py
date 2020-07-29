@@ -233,9 +233,9 @@ class Entity(ABC):
             elif 'person' in ent_type_set:
                 context_score = context.person_percentile(i)
             elif 'organisation' in ent_type_set or 'event'in ent_type_set:
-                context_score = context.org_event_percentile(i, ent_type)
+                context_score = context.org_event_percentile(i, ent_type_set)
             else:
-                context_score = context.common_percentile(i, ent_type)
+                context_score = context.common_percentile(i, ent_type_set)
 
             if context_score > 0:
                 self.poorly_disambiguated = False

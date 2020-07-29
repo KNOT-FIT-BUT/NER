@@ -133,7 +133,7 @@ class KnowledgeBase():
 		'''
 
 		PATH_NAMEDICT = os.path.join(INPUTS_DIR, self.lang, "ner_namedict.pkl")
-		PATH_FRAGMENTS = os.path.join(INPUTS_DIR, self.lang, "ner_fragments.pkl")
+		#PATH_FRAGMENTS = os.path.join(INPUTS_DIR, self.lang, "ner_fragments.pkl")
 
 		self.name_dict = {}
 		self.fragments = set()
@@ -241,12 +241,14 @@ class KnowledgeBase():
 		Vrátí seznam sloupců na řádku \a line, tak jak je v KB.
 		'''
 
+		col = 1
 		result = []
 		column_data = self.get_data_at(line, col)
 
 		while column_data != None:
 			result.append(column_data)
 			column_data = self.get_data_at(line, col)
+			col += 1
 
 		return result
 
@@ -256,12 +258,14 @@ class KnowledgeBase():
 		Vrátí seznam hlaviček sloupců pro uspořádanou množinu typů \a ent_type_set.
 		'''
 
+		col = 1
 		result = []
 		column_head = self.get_head_for(ent_type_set, col)
 
 		while column_head != None:
 			result.append(column_head)
 			column_head = self.get_head_for(ent_type_set, col)
+			col += 1
 
 		return result
 
@@ -272,8 +276,8 @@ class KnowledgeBase():
 		'''
 
 		ent_type_set = self.get_ent_type(line)
-		column_head_list = get_complete_data(line)
-		column_data_list = get_complete_head(ent_type_set)
+		column_head_list = self.get_complete_head(ent_type_set)
+		column_data_list = self.get_complete_data(line)
 
 		column_repr_list = []
 		for column_head, column_data in itertools.izip_longest(column_head_list, column_data_list):
@@ -330,7 +334,7 @@ class KnowledgeBase():
 			err_head = self.get_complete_head(err_type_set)
 			err_data = self.get_complete_data(line)
 			print_dbg_en("Line \"", line, "\" have non-integer type \"", type(result), "\" with content \"", result, "\"", delim="")
-			print_dbg_en("Dump head for type \"", err_type, "\" (cols=", len(err_head), "):\n\"\"\"\n", "\t".join(h.name for h in err_head), "\n\"\"\"", delim="")
+			print_dbg_en("Dump head for type \"", repr(err_type_set), "\" (cols=", len(err_head), "):\n\"\"\"\n", "\t".join(h.name for h in err_head), "\n\"\"\"", delim="")
 			print_dbg_en("Dump line \"", line, "\" (cols=", len(err_data), "):\n\"\"\"\n", "\t".join(err_data), "\n\"\"\"", delim="")
 			print_dbg_en("Version of connected KB (at \"", self.kb_shm_name, "\") is \"", self.version(), "\".", delim="")
 			raise

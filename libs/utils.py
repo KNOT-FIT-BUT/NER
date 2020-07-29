@@ -14,7 +14,7 @@ ACCENT_REGEX = re.compile(r"COMBINING|HANGUL JUNGSEONG|HANGUL JONGSEONG")
 def remove_accent(_string):
     """Removes accents from a string. For example, Eduard Ovčáček -> Eduard Ovcacek."""
     nkfd_form = unicodedata.normalize('NFKD', _string)
-    return str("".join([c for c in nkfd_form if not unicodedata.combining(c)]))
+    return "".join([c for c in nkfd_form if not unicodedata.combining(c)])
 
 
 def remove_accent_unicode(_string):
@@ -22,7 +22,7 @@ def remove_accent_unicode(_string):
     assert isinstance(_string, str)
 
     nfkd_form = unicodedata.normalize('NFKD', _string)
-    result = str("".join([c for c in nfkd_form if not ACCENT_REGEX.search(unicodedata_name(c))]))
+    result = "".join([c for c in nfkd_form if not ACCENT_REGEX.search(unicodedata_name(c))])
     if len(_string) == len(result):
         return result
     else:
@@ -39,7 +39,7 @@ def ncr2unicode(s):
                 c = int(s[1:], 16)
             else:
                 c = int(s)
-            return unichr(c)
+            return chr(c)
         except ValueError:
             return '&#'+s+';'
 
