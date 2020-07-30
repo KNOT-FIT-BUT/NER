@@ -71,28 +71,31 @@ class Ner():
         self.F_TITLES = os.path.abspath(os.path.join(INPUTS_DIR, self.language, "freq_terms_filtred.all"))
         self.LIST_OF_TITLES = [line.strip() for line in open(self.F_TITLES)] if os.path.exists(self.F_TITLES) else []
         
-        # loading knowledge base
+        # init knowledge base
         self._init_knowledge_base(own_kb_daemon)
     
     def __del__(self):
+        self.end()
+    
+    def start(self):
+        # loading knowledge base
+        self.kb.start()
+        self.kb.initName_dict()
+    
+    def end(self):
         if self.kb:
             self.kb.end()
     
     def _init_knowledge_base(self, own_kb_daemon):
-        kb = NerLoader.load(module = "ner_knowledge_base", lang = self.language, initiate = "KnowledgeBase")
+        self.kb = NerLoader.load(module = "ner_knowledge_base", lang = self.language, initiate = "KnowledgeBase")
         if own_kb_daemon:
             kb_daemon_run = True
             while kb_daemon_run:
                 kb_shm_name = "/decipherKB-%s-daemon_shm-%s" % (self.language, uuid.uuid4())
-                kb.init(kb_shm_name=kb_shm_name)
-                kb_daemon_run = kb.check()
+                self.kb.init(kb_shm_name=kb_shm_name)
+                kb_daemon_run = self.kb.check()
         else:
-            kb.init()
-        
-        kb.start()
-        kb.initName_dict()
-        
-        self.kb = kb
+            self.kb.init()
     
     def find_proper_nouns(self, input_string):
         """ Returns a list of proper nouns. """
@@ -668,6 +671,7 @@ def main():
     
     # init main unit
     ner = Ner(arguments.lang, own_kb_daemon=arguments.own_kb_daemon)
+    ner.start()
 
     if arguments.daemon_mode:
         input_string = ""
