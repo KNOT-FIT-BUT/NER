@@ -321,6 +321,9 @@ class KnowledgeBase():
 		nation = set([nat.lower() for nat in nation if nat != ""])
 		return nation
 
+	def get_uri(self, line):
+		result = self.get_data_for(line, "WIKIDATA URL") or self.get_data_for(line, "WIKIPEDIA URL") or self.get_data_for(line, "DBPEDIA URL")
+		return result
 
 	def get_score(self, line):
 		'''

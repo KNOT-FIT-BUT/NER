@@ -289,7 +289,7 @@ class Ner():
             if e.has_preferred_sense():
                 context.update(e)
 
-    def get_entities_from_figa(self, kb, input_string, lowercase, global_senses, register, print_score):
+    def get_entities_from_figa(self, kb, input_string, lowercase, global_senses, register, print_score, print_uri):
         """ Returns the list of Entity objects from figa. """ # TODO: Možná by nebylo od věci toto zapouzdřit do třídy jako v "get_entities.py".
         assert isinstance(kb, base_ner_knowledge_base.KnowledgeBase)
         assert isinstance(input_string, str)
@@ -297,6 +297,7 @@ class Ner():
         assert isinstance(global_senses, set)
         assert isinstance(register, EntityRegister)
         assert isinstance(print_score, bool)
+        assert isinstance(print_uri, bool)
 
         if not self.figa_seek_names:
             self.figa_seek_names = figa.marker()
@@ -326,6 +327,7 @@ class Ner():
             e.create(line, kb, input_string, register)
             global_senses.update(e.senses)
             e.display_score = print_score
+            e.display_uri = print_uri
             entities.append(e)
 
         return entities, raw_output
@@ -407,12 +409,13 @@ class Ner():
         return new_entities
 
 
-    def recognize(self, input_string, print_all=False, print_result=True, print_score=False, lowercase=False, remove=False, split_interval=True, find_names=False):
+    def recognize(self, input_string, print_all=False, print_result=True, print_uri=False, print_score=False, lowercase=False, remove=False, split_interval=True, find_names=False):
         """
         Prints a list of entities found in input_string.
 
         print_all - if false, all entities are disambiguated
         print_result - if True, the result is both returned as a list of entities and printed to stdout; otherwise, it is only returned
+        print_uri - print an URI instead of a line number of the KB
         print_score - similar to print_all, but also prints the score for each entity alternative
         lowercase - the input string is lowercased
         remove - removes accent from the input string
@@ -421,6 +424,7 @@ class Ner():
         assert isinstance(input_string, str)
         assert isinstance(print_all, bool)
         assert isinstance(print_result, bool)
+        assert isinstance(print_uri, bool)
         assert isinstance(print_score, bool)
         assert isinstance(lowercase, bool)
         assert isinstance(remove, bool)
@@ -458,7 +462,7 @@ class Ner():
         global_senses = set()
 
         # getting entities from figa
-        figa_entities, figa_raw_output = self.get_entities_from_figa(kb, input_string, lowercase, global_senses, register, print_score)
+        figa_entities, figa_raw_output = self.get_entities_from_figa(kb, input_string, lowercase, global_senses, register, print_score, print_uri)
         debugChangesInEntities(figa_entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
 
         # retaining only possible coreferences for each entity
@@ -673,7 +677,8 @@ def main():
     parser.add_argument('-n', '--names', action='store_true', default=False, help="Recognizes and prints all names with start and end offsets.")
     parser.add_argument("--own_kb_daemon", action="store_true", dest="own_kb_daemon", help=("Run own KB daemon although another already running."))
     parser.add_argument("--debug", action="store_true", help="Enable debugging reports.")
-
+    parser.add_argument("--uri", action="store_true", help="Print an URI instead of a line number of the KB.")
+    
     arguments = parser.parse_args()
     
     arguments.lang = arguments.lang.lower()
@@ -697,13 +702,13 @@ def main():
             line = sys.stdin.readline().rstrip()
             if line in tokens:
                 if "ALL" in line:
-                    ner.recognize(input_string, print_all=True, lowercase=arguments.lowercase, remove=arguments.remove_accent)
+                    ner.recognize(input_string, print_all=True, lowercase=arguments.lowercase, remove=arguments.remove_accent, print_uri=arguments.uri)
                 elif "SCORE" in line:
-                    ner.recognize(input_string, print_score=True, lowercase=arguments.lowercase, remove=arguments.remove_accent)
+                    ner.recognize(input_string, print_score=True, lowercase=arguments.lowercase, remove=arguments.remove_accent, print_uri=arguments.uri)
                 elif "NAMES" in line:
-                    ner.recognize(input_string, find_names=True, lowercase=arguments.lowercase, remove=arguments.remove_accent)
+                    ner.recognize(input_string, find_names=True, lowercase=arguments.lowercase, remove=arguments.remove_accent, print_uri=arguments.uri)
                 else:
-                    ner.recognize(input_string, print_all=False, lowercase=arguments.lowercase, remove=arguments.remove_accent)
+                    ner.recognize(input_string, print_all=False, lowercase=arguments.lowercase, remove=arguments.remove_accent, print_uri=arguments.uri)
                 print(line)
                 sys.stdout.flush()
                 input_string = ""
@@ -720,7 +725,7 @@ def main():
         else:
             input_string = sys.stdin.read()
         input_string = input_string.rstrip()
-        ner.recognize(input_string, print_all=arguments.all, print_score=arguments.score, lowercase=arguments.lowercase, remove=arguments.remove_accent, find_names=arguments.names)
+        ner.recognize(input_string, print_all=arguments.all, print_score=arguments.score, lowercase=arguments.lowercase, remove=arguments.remove_accent, find_names=arguments.names, print_uri=arguments.uri)
 
 if __name__ == "__main__":
     main()

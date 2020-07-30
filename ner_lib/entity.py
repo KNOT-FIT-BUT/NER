@@ -28,6 +28,7 @@ class Entity(ABC):
         
         self.next_to_same_type = False
         self.display_score = False
+        self.display_uri = False
         self.poorly_disambiguated = True
         self.is_coreference = False
         self.is_name = False
@@ -351,14 +352,17 @@ class Entity(ABC):
 
     def __str__(self):
         """ Converts an entity into an output format. """
-
+        
+        candidates_delim = ";" if not self.display_uri else "|"
         result = str(self.start_offset) + "\t" + str(self.end_offset) + "\t"
         if self.is_coreference:
+            if self.display_uri:
+                result += "uri_"
             result += "coref"
         elif self.is_name:
             result += "name"
-#        elif self.display_uri: # TODO: Umožnit výstup v URI
-#            result += "uri"
+        elif self.display_uri:
+            result += "uri"
         else:
             result += "kb"
         result += "\t" + self.input_string[self.start_offset:self.end_offset].replace('\n', ' ').replace('\r', '') + "\t"
@@ -366,22 +370,23 @@ class Entity(ABC):
             candidates_str = []
             i = 0
             for cand in self.candidates:
-                candidates_str.append(str(cand))
+                cand_link = str(cand) if not self.display_uri else self.kb.get_uri(cand)
+                candidates_str.append(cand_link)
                 if i < len(self.score):
                     candidates_str[-1] += " " + str(self.score[i])
                 i += 1
-            result += ";".join(candidates_str)
+            result += candidates_delim.join(candidates_str)
         elif self.has_preferred_sense():
-            result += str(self.get_preferred_sense())
+            result += str(self.get_preferred_sense()) if not self.display_uri else self.kb.get_uri(self.get_preferred_sense())
         else:
             if self.is_coreference:
                 senses_list = sorted(self.partial_match_senses)
             else:
                 senses_list = sorted(self.senses)
             for i in senses_list:
-                result += str(i)
+                result += str(i) if not self.display_uri else self.kb.get_uri(i)
                 if i != senses_list[-1]:
-                    result += ';'
+                    result += candidates_delim
         return result
 
     def right_context(self, right):
