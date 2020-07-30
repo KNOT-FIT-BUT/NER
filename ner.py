@@ -61,6 +61,7 @@ module_logger = get_ner_logger()
 
 class Ner():
     def __init__(self, language, own_kb_daemon=False):
+        self._running = False
         self.language = language
         self.ner_vars = NerLoader.load(module = "ner_vars", lang = self.language, initiate = "NerVars")
         self.dates = base_dates.importLanguageModule(self.language)
@@ -78,13 +79,30 @@ class Ner():
         self.end()
     
     def start(self):
+        if self._running:
+            return
+        
         # loading knowledge base
         self.kb.start()
         self.kb.initName_dict()
+        
+        self._running = True
     
     def end(self):
+        if not self._running:
+            return
+        
         if self.kb:
             self.kb.end()
+        
+        self._running = False
+    
+    def setPathKb(self, path_kb):
+        assert not self._running
+        self.kb.path_kb = path_kb
+    
+    def getPathKb(self):
+        return self.kb.path_kb
     
     def _init_knowledge_base(self, own_kb_daemon):
         self.kb = NerLoader.load(module = "ner_knowledge_base", lang = self.language, initiate = "KnowledgeBase")
