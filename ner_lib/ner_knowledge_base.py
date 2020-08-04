@@ -207,6 +207,9 @@ class KnowledgeBase():
 		'''
 
 		data = self.kb_shm.dataFor(line, col_name, col_name_type)
+		if data is None:
+			_, all_about_entity = self.get_complete_ent_pretty(line)
+			print_dbg_en(all_about_entity)
 		if separator:
 			data = data.split(separator) if data else []
 		return data
