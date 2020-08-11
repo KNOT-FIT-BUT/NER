@@ -75,10 +75,10 @@ class KnowledgeBase():
 					self.kb_shm.start()
 					if not self.checkVersion():
 						self.end()
-						self.init("/decipherKB-%s-daemon_shm-%s" % (self.lang, self.kb_shm.getVersionFromSrc(self.path_kb)))
+						self.init("/decipherKB-daemon_shm-%s" % (self.kb_shm.getVersionFromSrc(self.path_kb)))
 						return self.start()
 				else:
-					self.init("/decipherKB-%s-daemon_shm-%s" % (self.lang, self.kb_shm.getVersionFromSrc(self.path_kb)))
+					self.init("/decipherKB-daemon_shm-%s" % (self.kb_shm.getVersionFromSrc(self.path_kb)))
 					return self.start()
 			else:
 				if kb_daemon_run:

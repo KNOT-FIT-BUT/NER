@@ -109,7 +109,7 @@ class Ner():
         if own_kb_daemon:
             kb_daemon_run = True
             while kb_daemon_run:
-                kb_shm_name = "/decipherKB-%s-daemon_shm-%s" % (self.language, uuid.uuid4())
+                kb_shm_name = "/decipherKB-daemon_shm-%s-%s" % (self.language, uuid.uuid4())
                 self.kb.init(kb_shm_name=kb_shm_name)
                 kb_daemon_run = self.kb.check()
         else:
