@@ -267,7 +267,7 @@ class Entity(ABC):
         assert isinstance(context, modContext.Context)
         
         if self.is_location_coreference():
-            module_logger.info("Jump behind pronoun coreference %r in place %r:\"...%s...\", because his right context contains verb BE.", self.source, self.start_offset, self.input_string_in_unicode[self.start_offset-10:self.end_offset+10], extra={"context": cur_inspect()})
+            module_logger.info("Jump behind pronoun coreference %r in place %r:\"...%s...\", because his right context contains verb BE.", self.source, self.start_offset, self.input_string[self.start_offset-10:self.end_offset+10], extra={"context": cur_inspect()})
             return
 
         pronoun_type = self.ner_vars.PRONOUNS[self.source.lower()]
