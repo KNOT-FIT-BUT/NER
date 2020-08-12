@@ -397,8 +397,8 @@ class Ner():
                 if ent_bef.has_preferred_sense() and ent_bef.source.lower() not in self.ner_vars.PRONOUNS:
                     # if both entities are divided only by space and they are of the same type
                     if re.search("^[ ]+$", input_string[ent_bef.end_offset:ent.start_offset]):
-                        ent_type_set = set([kb.get_ent_type(ent.get_preferred_sense())])
-                        ent_bef_type_set = set([kb.get_ent_type(ent_bef.get_preferred_sense())])
+                        ent_type_set = kb.get_ent_type(ent.get_preferred_sense())
+                        ent_bef_type_set = kb.get_ent_type(ent_bef.get_preferred_sense())
                         mutual_type_set = ent_type_set & ent_bef_type_set
                         if {"person", "location"} & mutual_type_set:
                             ent.next_to_same_type = True
