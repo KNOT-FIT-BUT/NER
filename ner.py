@@ -440,13 +440,16 @@ class Ner():
             def check(self, entities, responsible_line):
                 if debug.DEBUG_EN:
                     if self.last_status_of_entities is not None:
-                        new_status_of_entities = [e+"\n" for e in map(str, sorted(entities, key=lambda ent: ent.start_offset))]
+                        new_status_of_entities = self.getStatusOfEntities(entities)
                         diff = "".join(difflib.unified_diff(self.last_status_of_entities, new_status_of_entities, fromfile='before', tofile='after', n=0))[:-1]
                         if diff:
                             print_dbg_en(responsible_line, diff, delim="\n", stack_num=2)
                         self.last_status_of_entities = new_status_of_entities
                     else:
-                        self.last_status_of_entities = [e+"\n" for e in map(str, sorted(entities, key=lambda ent: ent.start_offset))]
+                        self.last_status_of_entities = self.getStatusOfEntities(entities)
+            
+            def getStatusOfEntities(self, entities):
+                return [e+"\n" for e in map(lambda e: e.to_string(display_uri=e.display_uri, display_score=e.display_score, debug=debug.DEBUG_EN), sorted(entities, key=lambda ent: ent.start_offset))]
         debugChangesInEntities = DebugChangesInEntities().check
         
         # replacing non-printable characters and semicolon with space characters

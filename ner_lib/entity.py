@@ -351,40 +351,50 @@ class Entity(ABC):
 
 
     def __str__(self):
+        return self.to_string(display_uri=self.display_uri, display_score=self.display_score)
+    
+    def to_string(self, display_uri=False, display_score=False, debug=False):
         """ Converts an entity into an output format. """
         
-        candidates_delim = ";" if not self.display_uri else "|"
+        candidates_delim = ";" if not display_uri else "|"
         result = str(self.start_offset) + "\t" + str(self.end_offset) + "\t"
         if self.is_coreference:
-            if self.display_uri:
+            if display_uri:
                 result += "uri_"
             result += "coref"
         elif self.is_name:
             result += "name"
-        elif self.display_uri:
+        elif display_uri:
             result += "uri"
         else:
             result += "kb"
         result += "\t" + self.input_string[self.start_offset:self.end_offset].replace('\n', ' ').replace('\r', '') + "\t"
-        if self.display_score and self.candidates:
+        if display_score and self.candidates:
             candidates_str = []
             i = 0
             for cand in self.candidates:
-                cand_link = str(cand) if not self.display_uri else self.kb.get_uri(cand)
+                cand_link = str(cand) if not display_uri else self.kb.get_uri(cand)
                 candidates_str.append(cand_link)
                 if i < len(self.score):
                     candidates_str[-1] += " " + str(self.score[i])
                 i += 1
             result += candidates_delim.join(candidates_str)
         elif self.has_preferred_sense():
-            result += str(self.get_preferred_sense()) if not self.display_uri else self.kb.get_uri(self.get_preferred_sense())
+            result += str(self.get_preferred_sense()) if not display_uri else self.kb.get_uri(self.get_preferred_sense())
         else:
             if self.is_coreference:
                 senses_list = sorted(self.partial_match_senses)
             else:
                 senses_list = sorted(self.senses)
             for i in senses_list:
-                result += str(i) if not self.display_uri else self.kb.get_uri(i)
+                result += str(i) if not display_uri else self.kb.get_uri(i)
+                if debug:
+                    wikipedia_url = self.kb.get_data_for(i, "WIKIPEDIA URL")
+                    result += " – ("
+                    result += f"type: '{self.kb.get_ent_type(i)}'"
+                    if not display_uri or display_uri and wikipedia_url != self.kb.get_uri(i):
+                        result += f", wikipedia_url: '{wikipedia_url}'"
+                    result += ")"
                 if i != senses_list[-1]:
                     result += candidates_delim
         return result
