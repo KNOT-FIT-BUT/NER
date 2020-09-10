@@ -654,13 +654,12 @@ def remove_shorter_entities(entities):
     assert isinstance(entities, list) # list of Entity
 
     # figa should always return the longest match first
-    entity_offsets = set()
+    max_end_offset = -1
     new_entities = []
     for e in entities:
-        current_offset = set(range(e.start_offset, e.end_offset + 1))
-        if current_offset & entity_offsets == set():
-            entity_offsets.update(current_offset)
+        if e.end_offset > max_end_offset:
             new_entities.append(e)
+            max_end_offset = e.end_offset
     return new_entities
 
 def main():
