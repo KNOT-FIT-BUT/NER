@@ -30,8 +30,6 @@ downloadNerInputs() {
 	echo
 }
 
-downloadNerInputs 'cz' 'http://knot.fit.vutbr.cz/NAKI_CPK/NER_ML_inputs/NER_ML_inputs-KB_latest-dct.tgz'
+downloadNerInputs 'cz' 'http://athena3.fit.vutbr.cz/kb/latest-cz/ner_inputs.tgz'
 downloadNerInputs 'en' 'http://athena3.fit.vutbr.cz/kb/latest/NAKI_CPK/ner_inputs.tgz'
 # </languages>
-
-cd $PWD_COPY
