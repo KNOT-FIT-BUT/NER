@@ -300,7 +300,7 @@ class Ner():
         assert isinstance(print_uri, bool)
 
         if not self.figa_seek_names:
-            self.figa_seek_names = figa.marker()
+            self.figa_seek_names = figa.marker(over=True)
 
             lower = ""
             if lowercase:
