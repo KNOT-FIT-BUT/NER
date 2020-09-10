@@ -54,7 +54,7 @@ from .ner_lib.entity_register import EntityRegister
 # Pro debugování:
 from .ner_lib import debug
 debug.DEBUG_EN = False
-from .ner_lib.debug import print_dbg_en
+from .ner_lib.debug import print_dbg_en, print_dbg
 # </LOKÁLNÍ IMPORTY>
 
 module_logger = get_ner_logger()
@@ -464,6 +464,7 @@ class Ner():
         # getting entities from figa
         figa_entities, figa_raw_output = self.get_entities_from_figa(kb, input_string, lowercase, global_senses, register, print_score, print_uri)
         debugChangesInEntities(figa_entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
+        print_dbg("        # Output from Figa:\n\n", figa_raw_output)
 
         # retaining only possible coreferences for each entity
         for e in figa_entities:
