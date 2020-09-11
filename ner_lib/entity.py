@@ -359,7 +359,17 @@ class Entity(ABC):
         """ Converts an entity into an output format. """
         
         candidates_delim = ";" if not display_uri else "|"
-        result = str(self.start_offset) + "\t" + str(self.end_offset) + "\t"
+        
+        preferred_entity = self
+        if self.has_preferred_sense():
+            preferred_sense = self.get_preferred_sense()
+            for e in self.parents:
+                if preferred_sense in e.senses:
+                    preferred_entity = e
+                    break
+        
+        result = str(preferred_entity.start_offset) + "\t" + str(preferred_entity.end_offset) + "\t"
+        
         if self.is_coreference:
             if display_uri:
                 result += "uri_"
@@ -370,7 +380,7 @@ class Entity(ABC):
             result += "uri"
         else:
             result += "kb"
-        result += "\t" + self.input_string[self.start_offset:self.end_offset].replace('\n', ' ').replace('\r', '') + "\t"
+        result += "\t" + self.input_string[preferred_entity.start_offset:preferred_entity.end_offset].replace('\n', ' ').replace('\r', '') + "\t"
         if display_score and self.candidates:
             candidates_str = []
             i = 0
