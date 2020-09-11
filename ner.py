@@ -455,7 +455,7 @@ class Ner():
                         self.last_status_of_entities = self.getStatusOfEntities(entities)
             
             def getStatusOfEntities(self, entities):
-                return [e+"\n" for e in map(lambda e: e.to_string(display_uri=e.display_uri, display_score=e.display_score, debug=debug.DEBUG_EN), sorted(entities, key=lambda ent: ent.start_offset))]
+                return [e+"\n" for e in map(lambda e: e.to_string(display_uri=e.display_uri, display_score=e.display_score, debug=debug.DEBUG_EN) if isinstance(e, Entity) else str(e), sorted(entities, key=lambda ent: ent.start_offset))]
         debugChangesInEntities = DebugChangesInEntities().check
         
         # replacing non-printable characters and semicolon with space characters
