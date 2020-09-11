@@ -473,7 +473,7 @@ class Ner():
         # getting entities from figa
         figa_entities, figa_raw_output = self.get_entities_from_figa(kb, input_string, lowercase, global_senses, register, print_score, print_uri, entities_overlap=entities_overlap)
         debugChangesInEntities(figa_entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
-        print_dbg("        # Output from Figa:\n\n", figa_raw_output)
+        print_dbg("        # Output from Figa:\n\n", figa_raw_output, delim="")
 
         # retaining only possible coreferences for each entity
         for e in figa_entities:
