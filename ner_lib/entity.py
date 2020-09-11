@@ -361,7 +361,7 @@ class Entity(ABC):
         candidates_delim = ";" if not display_uri else "|"
         
         preferred_entity = self
-        if self.has_preferred_sense():
+        if self.has_preferred_sense() and not (display_score and self.candidates):
             preferred_sense = self.get_preferred_sense()
             for e in self.parents:
                 if preferred_sense in e.senses:
