@@ -290,7 +290,7 @@ class Ner():
             if e.has_preferred_sense():
                 context.update(e)
 
-    def get_entities_from_figa(self, kb, input_string, lowercase, global_senses, register, print_score, print_uri):
+    def get_entities_from_figa(self, kb, input_string, lowercase, global_senses, register, print_score, print_uri, entities_overlap=False):
         """ Returns the list of Entity objects from figa. """ # TODO: Možná by nebylo od věci toto zapouzdřit do třídy jako v "get_entities.py".
         assert isinstance(kb, base_ner_knowledge_base.KnowledgeBase)
         assert isinstance(input_string, str)
@@ -300,14 +300,18 @@ class Ner():
         assert isinstance(print_score, bool)
         assert isinstance(print_uri, bool)
 
-        if not self.figa_seek_names:
-            self.figa_seek_names = figa.marker(over=True)
+        figa_seek_names_config = {"overlap": entities_overlap, "lowercase": lowercase, "language": self.language}
+
+        if not self.figa_seek_names or self.figa_seek_names_config != figa_seek_names_config:
+            self.figa_seek_names_config = figa_seek_names_config
+            cfg = self.figa_seek_names_config
+            self.figa_seek_names = figa.marker(over=cfg["overlap"])
 
             lower = ""
-            if lowercase:
+            if cfg["lowercase"]:
                 lower = "-lower"
 
-            path_to_figa_dict = os.path.dirname(os.path.realpath(__file__)) + "/ner_lib/inputs/"+self.language+"/automata" + lower
+            path_to_figa_dict = os.path.dirname(os.path.realpath(__file__)) + f"/ner_lib/inputs/{cfg['language']}/automata{lower}"
             if os.path.isfile(path_to_figa_dict + ".dct"):
                 path_to_figa_dict += ".dct" # DARTS
             else:
@@ -410,7 +414,7 @@ class Ner():
         return new_entities
 
 
-    def recognize(self, input_string, print_all=False, print_result=True, print_uri=False, print_score=False, lowercase=False, remove=False, split_interval=True, find_names=False):
+    def recognize(self, input_string, print_all=False, print_result=True, print_uri=False, print_score=False, lowercase=False, remove=False, split_interval=True, find_names=False, entities_overlap=False):
         """
         Prints a list of entities found in input_string.
 
@@ -421,6 +425,7 @@ class Ner():
         lowercase - the input string is lowercased
         remove - removes accent from the input string
         split_interval - split dates intervals in function dates.find_dates()
+        entities_overlap - enable overlapping of entities in output from Figa
         """
         assert isinstance(input_string, str)
         assert isinstance(print_all, bool)
@@ -466,7 +471,7 @@ class Ner():
         global_senses = set()
 
         # getting entities from figa
-        figa_entities, figa_raw_output = self.get_entities_from_figa(kb, input_string, lowercase, global_senses, register, print_score, print_uri)
+        figa_entities, figa_raw_output = self.get_entities_from_figa(kb, input_string, lowercase, global_senses, register, print_score, print_uri, entities_overlap=entities_overlap)
         debugChangesInEntities(figa_entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
         print_dbg("        # Output from Figa:\n\n", figa_raw_output)
 
@@ -478,9 +483,10 @@ class Ner():
         figa_entities = remove_shorter_entities(figa_entities)
         debugChangesInEntities(figa_entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
 
-        # merge overlapping entities
-        figa_entities = merge_overlapping_entities(figa_entities)
-        debugChangesInEntities(figa_entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
+        if entities_overlap:
+            # merge overlapping entities
+            figa_entities = merge_overlapping_entities(figa_entities)
+            debugChangesInEntities(figa_entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
 
         # removing entities without any sense
         nationalities = []
@@ -712,6 +718,7 @@ def main():
     parser.add_argument('-r', '--remove-accent', action='store_true', default=False, help="Removes accent in input.")
     parser.add_argument('-l', '--lowercase', action='store_true', default=False, help="Changes all characters in input to the lowercase characters.")
     parser.add_argument('-n', '--names', action='store_true', default=False, help="Recognizes and prints all names with start and end offsets.")
+    parser.add_argument('--overlap', action='store_true', default=False, help="Enable overlapping of entities in output from Figa.")
     parser.add_argument("--own_kb_daemon", action="store_true", dest="own_kb_daemon", help=("Run own KB daemon although another already running."))
     parser.add_argument("--debug", action="store_true", help="Enable debugging reports.")
     parser.add_argument("--uri", action="store_true", help="Print an URI instead of a line number of the KB.")
@@ -739,13 +746,13 @@ def main():
             line = sys.stdin.readline().rstrip()
             if line in tokens:
                 if "ALL" in line:
-                    ner.recognize(input_string, print_all=True, lowercase=arguments.lowercase, remove=arguments.remove_accent, print_uri=arguments.uri)
+                    ner.recognize(input_string, print_all=True, lowercase=arguments.lowercase, remove=arguments.remove_accent, print_uri=arguments.uri, entities_overlap=arguments.overlap)
                 elif "SCORE" in line:
-                    ner.recognize(input_string, print_score=True, lowercase=arguments.lowercase, remove=arguments.remove_accent, print_uri=arguments.uri)
+                    ner.recognize(input_string, print_score=True, lowercase=arguments.lowercase, remove=arguments.remove_accent, print_uri=arguments.uri, entities_overlap=arguments.overlap)
                 elif "NAMES" in line:
-                    ner.recognize(input_string, find_names=True, lowercase=arguments.lowercase, remove=arguments.remove_accent, print_uri=arguments.uri)
+                    ner.recognize(input_string, find_names=True, lowercase=arguments.lowercase, remove=arguments.remove_accent, print_uri=arguments.uri, entities_overlap=arguments.overlap)
                 else:
-                    ner.recognize(input_string, print_all=False, lowercase=arguments.lowercase, remove=arguments.remove_accent, print_uri=arguments.uri)
+                    ner.recognize(input_string, print_all=False, lowercase=arguments.lowercase, remove=arguments.remove_accent, print_uri=arguments.uri, entities_overlap=arguments.overlap)
                 print(line)
                 sys.stdout.flush()
                 input_string = ""
@@ -762,7 +769,7 @@ def main():
         else:
             input_string = sys.stdin.read()
         input_string = input_string.rstrip()
-        ner.recognize(input_string, print_all=arguments.all, print_score=arguments.score, lowercase=arguments.lowercase, remove=arguments.remove_accent, find_names=arguments.names, print_uri=arguments.uri)
+        ner.recognize(input_string, print_all=arguments.all, print_score=arguments.score, lowercase=arguments.lowercase, remove=arguments.remove_accent, find_names=arguments.names, print_uri=arguments.uri, entities_overlap=arguments.overlap)
 
 if __name__ == "__main__":
     main()
