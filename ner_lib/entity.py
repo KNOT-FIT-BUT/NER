@@ -45,6 +45,8 @@ class Entity(ABC):
         self.context_score = []
         self.coreferences = set()
         self.ner_vars = NerLoader.load(module = "ner_vars", lang = self.lang, initiate = "NerVars")
+        
+        self.parents = [] # When an entity has overlap with another entity, then they will be joined to new entity
 
 
     def create(self, entity_attributes, kb, input_string, register):
