@@ -35,7 +35,7 @@ DEBUG_EN = True
 
 
 def getInspectInfo(iContext):
-	callerframerecord = inspect.stack()[iContext]
+	callerframerecord = inspect.stack()[iContext + 1]
 	frame = callerframerecord[0]
 	info = inspect.getframeinfo(frame)
 	
