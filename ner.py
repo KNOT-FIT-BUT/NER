@@ -458,8 +458,8 @@ class Ner():
                 return [e+"\n" for e in map(lambda e: e.to_string(display_uri=e.display_uri, display_score=e.display_score, debug=debug.DEBUG_EN) if isinstance(e, Entity) else str(e), sorted(entities, key=lambda ent: ent.start_offset))]
         debugChangesInEntities = DebugChangesInEntities().check
         
-        # replacing non-printable characters and semicolon with space characters
-        input_string = re.sub("[;\x01-\x08\x0e-\x1f\x0c\x7f]", " ", input_string)
+        # replacing non-printable characters with space characters
+        input_string = re.sub("[\x01-\x08\x0e-\x1f\x0c\x7f]", " ", input_string)
 
         # running with parametr --remove_accent
         if remove:
