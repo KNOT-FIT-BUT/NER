@@ -692,7 +692,7 @@ def merge_overlapping_entities(entities):
             current_entity_string = current_entity.input_string[current_entity.start_offset:current_entity.end_offset]
             if "," in current_entity_string: # Pokud entita, jenž má být připojena k předchozí entitě kvůli překryvu, obsahuje čárku, pak je přeskočena.
                 continue
-            elif "," in last_entity_string and last_entity.senses & current_entity.senses != set(): # Např.: "Sultan, Hanzade Sultan" z  řetězce "Ibrahim I., Gevher(han) Sultan, Hanzade Sultan, Fatma Sultan, …"
+            elif "," in last_entity_string and current_entity.senses != set(): # Např. upřednostní entitu "František Stárek" zahozením entity "Staněk, František" v řetězci "Karel Srp, Dr. Vladimír Staněk, František Stárek, Dr. Jaroslav Studený, …"
                 last_entity = current_entity
                 last_entity_offset = current_entity_offset
                 new_entities[-1] = last_entity
