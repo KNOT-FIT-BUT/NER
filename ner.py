@@ -36,6 +36,7 @@ import os
 import re
 import uuid
 import copy
+import string
 
 # Pro debugování:
 import difflib, linecache, inspect
@@ -693,9 +694,15 @@ def merge_overlapping_entities(entities):
             if "," in current_entity_string: # Pokud entita, jenž má být připojena k předchozí entitě kvůli překryvu, obsahuje čárku, pak je přeskočena.
                 continue
             elif "," in last_entity_string and current_entity.senses != set(): # Např. upřednostní entitu "František Stárek" zahozením entity "Staněk, František" v řetězci "Karel Srp, Dr. Vladimír Staněk, František Stárek, Dr. Jaroslav Studený, …"
+                # Předchozí entita se zkrátí dle aktuální entity a zůstane pouze jako možná koreference
+                last_entity.end_offset = current_entity.start_offset
+                last_entity_string = last_entity.input_string[last_entity.start_offset:last_entity.end_offset]
+                last_entity.end_offset -= len(last_entity_string) - len(last_entity_string.rstrip(string.whitespace + ","))
+                last_entity.senses = set()
+                # Přidání aktuální entity
+                new_entities.append(current_entity)
                 last_entity = current_entity
                 last_entity_offset = current_entity_offset
-                new_entities[-1] = last_entity
                 continue
             
             if len(last_entity.parents) == 0:
