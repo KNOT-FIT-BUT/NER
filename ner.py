@@ -430,11 +430,15 @@ class Ner():
                 if "," in current_entity_string: # Pokud entita, jenž má být připojena k předchozí entitě kvůli překryvu, obsahuje čárku, pak je přeskočena.
                     continue
                 elif "," in last_entity_string and current_entity.senses != set(): # Např. upřednostní entitu "František Stárek" zahozením entity "Staněk, František" v řetězci "Karel Srp, Dr. Vladimír Staněk, František Stárek, Dr. Jaroslav Studený, …"
-                    # Předchozí entita se zkrátí dle aktuální entity a zůstane pouze jako možná koreference
+                    # Předchozí entita se zkrátí dle aktuální entity a z nástroje Figa se zíkají její významy
                     last_entity.end_offset = current_entity.start_offset
                     last_entity_string = last_entity.input_string[last_entity.start_offset:last_entity.end_offset]
                     last_entity.end_offset -= len(last_entity_string) - len(last_entity_string.rstrip(string.whitespace + ","))
+                    last_entity_string = last_entity.input_string[last_entity.start_offset:last_entity.end_offset]
+                    figa_entities, figa_raw_output = self.get_entities_from_figa(self.kb, last_entity_string, False, set(), last_entity.register, last_entity.display_score, last_entity.display_uri, entities_overlap=False)
                     last_entity.senses = set()
+                    for e in figa_entities:
+                        last_entity.senses.update(e.senses)
                     # Přidání aktuální entity
                     new_entities.append(current_entity)
                     last_entity = current_entity
