@@ -414,6 +414,50 @@ class Ner():
         new_entities = [e for e in entities if not e.next_to_same_type]
         return new_entities
 
+    def merge_overlapping_entities(self, entities):
+        """ Merge overlapping entities. """
+        assert isinstance(entities, list) # list of Entity
+        
+        # figa should always return the longest match first
+        last_entity = None
+        last_entity_offset = set()
+        new_entities = []
+        for current_entity in entities:
+            current_entity_offset = set(range(current_entity.start_offset, current_entity.end_offset + 1))
+            if last_entity_offset & current_entity_offset != set() and last_entity_offset | current_entity_offset != last_entity_offset:
+                last_entity_string = last_entity.input_string[last_entity.start_offset:last_entity.end_offset]
+                current_entity_string = current_entity.input_string[current_entity.start_offset:current_entity.end_offset]
+                if "," in current_entity_string: # Pokud entita, jenž má být připojena k předchozí entitě kvůli překryvu, obsahuje čárku, pak je přeskočena.
+                    continue
+                elif "," in last_entity_string and current_entity.senses != set(): # Např. upřednostní entitu "František Stárek" zahozením entity "Staněk, František" v řetězci "Karel Srp, Dr. Vladimír Staněk, František Stárek, Dr. Jaroslav Studený, …"
+                    # Předchozí entita se zkrátí dle aktuální entity a zůstane pouze jako možná koreference
+                    last_entity.end_offset = current_entity.start_offset
+                    last_entity_string = last_entity.input_string[last_entity.start_offset:last_entity.end_offset]
+                    last_entity.end_offset -= len(last_entity_string) - len(last_entity_string.rstrip(string.whitespace + ","))
+                    last_entity.senses = set()
+                    # Přidání aktuální entity
+                    new_entities.append(current_entity)
+                    last_entity = current_entity
+                    last_entity_offset = current_entity_offset
+                    continue
+                
+                if len(last_entity.parents) == 0:
+                    new_entity = copy.copy(last_entity)
+                    new_entity.parents.append(last_entity)
+                    new_entity.senses = set()
+                    new_entity.senses.update(last_entity.senses)
+                    last_entity = new_entity
+                    new_entities[-1] = last_entity
+                last_entity.parents.append(current_entity)
+                last_entity.start_offset = min(last_entity.start_offset, current_entity.start_offset)
+                last_entity.end_offset = max(last_entity.end_offset, current_entity.end_offset)
+                last_entity_offset = set(range(last_entity.start_offset, last_entity.end_offset + 1))
+                last_entity.senses.update(current_entity.senses)
+            else:
+                new_entities.append(current_entity)
+                last_entity = current_entity
+                last_entity_offset = current_entity_offset
+        return new_entities
 
     def recognize(self, input_string, print_all=False, print_result=True, print_uri=False, print_score=False, lowercase=False, remove=False, split_interval=True, find_names=False, entities_overlap=False):
         """
@@ -486,7 +530,7 @@ class Ner():
 
         if entities_overlap:
             # merge overlapping entities
-            figa_entities = merge_overlapping_entities(figa_entities)
+            figa_entities = self.merge_overlapping_entities(figa_entities)
             debugChangesInEntities(figa_entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
 
         # removing entities without any sense
@@ -676,51 +720,6 @@ def remove_shorter_entities(entities):
         if e.end_offset > max_end_offset:
             new_entities.append(e)
             max_end_offset = e.end_offset
-    return new_entities
-
-def merge_overlapping_entities(entities):
-    """ Merge overlapping entities. """
-    assert isinstance(entities, list) # list of Entity
-
-    # figa should always return the longest match first
-    last_entity = None
-    last_entity_offset = set()
-    new_entities = []
-    for current_entity in entities:
-        current_entity_offset = set(range(current_entity.start_offset, current_entity.end_offset + 1))
-        if last_entity_offset & current_entity_offset != set() and last_entity_offset | current_entity_offset != last_entity_offset:
-            last_entity_string = last_entity.input_string[last_entity.start_offset:last_entity.end_offset]
-            current_entity_string = current_entity.input_string[current_entity.start_offset:current_entity.end_offset]
-            if "," in current_entity_string: # Pokud entita, jenž má být připojena k předchozí entitě kvůli překryvu, obsahuje čárku, pak je přeskočena.
-                continue
-            elif "," in last_entity_string and current_entity.senses != set(): # Např. upřednostní entitu "František Stárek" zahozením entity "Staněk, František" v řetězci "Karel Srp, Dr. Vladimír Staněk, František Stárek, Dr. Jaroslav Studený, …"
-                # Předchozí entita se zkrátí dle aktuální entity a zůstane pouze jako možná koreference
-                last_entity.end_offset = current_entity.start_offset
-                last_entity_string = last_entity.input_string[last_entity.start_offset:last_entity.end_offset]
-                last_entity.end_offset -= len(last_entity_string) - len(last_entity_string.rstrip(string.whitespace + ","))
-                last_entity.senses = set()
-                # Přidání aktuální entity
-                new_entities.append(current_entity)
-                last_entity = current_entity
-                last_entity_offset = current_entity_offset
-                continue
-            
-            if len(last_entity.parents) == 0:
-                new_entity = copy.copy(last_entity)
-                new_entity.parents.append(last_entity)
-                new_entity.senses = set()
-                new_entity.senses.update(last_entity.senses)
-                last_entity = new_entity
-                new_entities[-1] = last_entity
-            last_entity.parents.append(current_entity)
-            last_entity.start_offset = min(last_entity.start_offset, current_entity.start_offset)
-            last_entity.end_offset = max(last_entity.end_offset, current_entity.end_offset)
-            last_entity_offset = set(range(last_entity.start_offset, last_entity.end_offset + 1))
-            last_entity.senses.update(current_entity.senses)
-        else:
-            new_entities.append(current_entity)
-            last_entity = current_entity
-            last_entity_offset = current_entity_offset
     return new_entities
 
 def main():
