@@ -140,11 +140,8 @@ class Ner():
         assert isinstance(register, EntityRegister)
 
         nr = name_recognizer.NameRecognizer()
-        try:
-            data_rows = nr.recognize_names(input_string, figa_out=figa_raw_output)
-        except Exception:
-            return
-
+        data_rows = nr.recognize_names(input_string, figa_out=figa_raw_output)
+        
         name_entities = []
 
         for dr in data_rows:
