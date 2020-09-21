@@ -144,8 +144,11 @@ class Ner():
         
         name_entities = []
 
-        for dr in data_rows:
-            name_entities.append(Entity.from_data_row(kb, dr, input_string, register))
+        for line in parseFigaOutput("\n".join(str(dr)+"\t" for dr in data_rows)):
+            e = NerLoader.load(module = "entity", lang = self.language, initiate = "Entity")
+            e.create(line, kb, input_string, register)
+            e.is_name = True
+            name_entities.append(e)
 
         new_name_entities = []
 

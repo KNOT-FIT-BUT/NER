@@ -11,7 +11,6 @@ from .configs import KB_MULTIVALUE_DELIM # !!! jen CZ addons
 from .ner_loader import NerLoader
 from ..libs.nationalities.nat_loader import NatLoader
 from ..libs.utils import ncr2unicode, remove_accent_unicode, get_ner_logger
-from ..name_recognizer import data_row as module_data_row
 
 from . import debug
 debug.DEBUG_EN = False
@@ -89,19 +88,6 @@ class Entity(ABC):
 
         # possible coreferences - people whose names are supersets of an entity
         self.partial_match_senses = self.kb.people_named(remove_accent_unicode(self.source).lower())
-
-    @classmethod
-    def from_data_row(cls, kb, dr, input_string, register):
-        assert isinstance(kb, base_ner_knowledge_base.KnowledgeBase)
-        assert isinstance(dr, module_data_row.DataRow)
-        assert isinstance(input_string, str)
-        assert isinstance(register, entity_register.EntityRegister)
-        
-        input_string_bytes = input_string.encode()
-
-        entity = cls(str(dr).split('\t'), kb, input_string, input_string_bytes, register)
-        entity.is_name = True
-        return entity
 
     def set_preferred_sense(self, _sense):
         assert isinstance(_sense, (int, Entity)) or _sense == None

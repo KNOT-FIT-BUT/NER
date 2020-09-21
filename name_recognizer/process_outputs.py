@@ -78,7 +78,6 @@ class Processor(object):
         else:
             self.figa_doc = TextFile.from_text(figa)
             self.text_doc = TextFile.from_text(text)
-            self.text_doc.content = self.text_doc.content.decode('utf-8')
 
         if flearned != None:
             self.llearned  = TextFile(flearned, 'a')
