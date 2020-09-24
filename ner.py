@@ -191,17 +191,20 @@ class Ner():
 
         # inserting names into entity list
         for nne in new_name_entities:
-            for i in range(len(entities_and_dates)):
-                if i == len(entities_and_dates)-1:
-                    entities_and_dates.append(nne)
-                    break
-                elif nne.start_offset >= entities_and_dates[i].start_offset and \
-                nne.start_offset < entities_and_dates[i+1].start_offset:
-                    entities_and_dates.insert(i+1, nne)
-                    break
-                elif nne.start_offset < entities_and_dates[0].start_offset:
-                    entities_and_dates.insert(0, nne)
-                    break
+            if len(entities_and_dates) > 0:
+                for i in range(len(entities_and_dates)):
+                    if i == len(entities_and_dates)-1:
+                        entities_and_dates.append(nne)
+                        break
+                    elif nne.start_offset >= entities_and_dates[i].start_offset and \
+                    nne.start_offset < entities_and_dates[i+1].start_offset:
+                        entities_and_dates.insert(i+1, nne)
+                        break
+                    elif nne.start_offset < entities_and_dates[0].start_offset:
+                        entities_and_dates.insert(0, nne)
+                        break
+            else:
+                entities_and_dates.append(nne)
 
         self.adjust_coreferences(entities_and_dates, new_name_entities)
 
