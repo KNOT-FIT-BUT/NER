@@ -386,7 +386,7 @@ class Entity(ABC):
                 senses_list = sorted(self.senses)
             for i in senses_list:
                 result += str(i) if not display_uri else self.kb.get_uri(i)
-                if debug:
+                if debug and (not self.is_name or i > 0):
                     wikipedia_url = self.kb.get_data_for(i, "WIKIPEDIA URL")
                     result += " – ("
                     result += f"type: '{self.kb.get_ent_type(i)}'"
