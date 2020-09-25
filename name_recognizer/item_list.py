@@ -7,6 +7,7 @@
 
 from .base_list import BaseList
 import os
+import sys
 
 class ItemList(BaseList):
     '''
@@ -36,7 +37,7 @@ class ItemList(BaseList):
             for line in f.readlines():
                 tlist.append(line.strip())
         except IOError:
-            print('File {} not found!'.format(self.path))
+            print('File {} not found!'.format(self.path), file=sys.stderr)
             return []
         else:
             f.close()
