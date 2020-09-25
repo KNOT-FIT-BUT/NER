@@ -501,7 +501,7 @@ class Ner():
                         new_status_of_entities = self.getStatusOfEntities(entities)
                         diff = "".join(difflib.unified_diff(self.last_status_of_entities, new_status_of_entities, fromfile='before', tofile='after', n=0))[:-1]
                         if diff:
-                            print_dbg_en(responsible_line, diff, delim="\n", stack_num=2)
+                            print_dbg_en(">>> " + responsible_line.strip(), diff, delim="\n", stack_num=2)
                         self.last_status_of_entities = new_status_of_entities
                     else:
                         self.last_status_of_entities = self.getStatusOfEntities(entities)
@@ -525,7 +525,7 @@ class Ner():
         # getting entities from figa
         figa_entities, figa_raw_output = self.get_entities_from_figa(kb, input_string, lowercase, global_senses, register, print_score, print_uri, entities_overlap=entities_overlap)
         debugChangesInEntities(figa_entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
-        print_dbg("        # Output from Figa:\n\n", figa_raw_output, delim="")
+        print_dbg(">>> # Output from Figa:", figa_raw_output, delim="\n")
 
         # retaining only possible coreferences for each entity
         for e in figa_entities:
@@ -548,7 +548,7 @@ class Ner():
                 nationalities.append(e)
             elif e.senses or e.partial_match_senses or e.source.lower() in self.ner_vars.PRONOUNS:
                 entities.append(e)
-        debugChangesInEntities(entities, "removing entities without any sense")
+        debugChangesInEntities(entities, "# removing entities without any sense")
 
         # searches for dates and intervals in the input
         dates_and_intervals = self.dates.find_dates(input_string, split_interval=split_interval)
@@ -599,11 +599,12 @@ class Ner():
 
         # updating entities_and_dates
         entities_and_dates = [e for e in entities_and_dates if isinstance(e, self.dates.Date) or e in entities]
-        debugChangesInEntities(entities_and_dates, "updating entities_and_dates")
+        debugChangesInEntities(entities_and_dates, "# updating entities_and_dates")
 
         # finding unknown names
         if find_names:
             self.add_unknown_names(kb, entities_and_dates, input_string, register, figa_raw_output=figa_raw_output)
+            debugChangesInEntities(entities_and_dates, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
 
         # omitting entities without a sense
         if entities_and_dates:
@@ -615,7 +616,7 @@ class Ner():
                         if isinstance(e, Entity):
                             e.set_preferred_sense(None)
                 entities_and_dates = [e for e in entities_and_dates if isinstance(e, self.dates.Date) or (e.is_coreference and e.partial_match_senses) or (not e.is_coreference and e.senses) or e.is_name]
-        debugChangesInEntities(entities_and_dates, "omitting entities without a sense")
+        debugChangesInEntities(entities_and_dates, "# omitting entities without a sense")
 
         if print_result:
             print("\n".join(map(str, entities_and_dates)))
