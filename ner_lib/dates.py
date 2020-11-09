@@ -170,9 +170,9 @@ class Date(object):
 			if not self.__class__.regex_split_interval:
 				self.__class__.regex_split_interval = re.compile("(?i)[ ]*"+self.__class__.long_interval_delim+"[ ]*")
 			match = self.__class__.regex_split_interval.search(self.source)
-			date_from = Date()
+			date_from = self.__class__()
 			date_from.init_date( self.source[:match.start()], self.date_from, self.start_offset, self.confidence )
-			date_to = Date()
+			date_to = self.__class__()
 			date_to.init_date( self.source[match.start()+len(match.group()):], self.date_to, self.start_offset+( match.start()+len(match.group()) ), self.confidence )
 			return [date_from, date_to]
 		else:
