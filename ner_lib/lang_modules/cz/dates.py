@@ -49,13 +49,13 @@ months = [
 	"bře(?:(?:zen)|(?:zna))?",
 	"dub(?:(?:en)|(?:na))?",
 	"kvě(?:(?:ten)|(?:tna))?",
-	"čer(?:(?:ven)|(?:vna))?",
 	"červenec",
 	"července",
+	"čer(?:(?:ven)|(?:vna))?",
 	"čec",
 	"srp(?:(?:en)|(?:na))?",
 	"zář(?:í)?",
-	"ríj(?:(?:en)|(?:na))?",
+	"říj(?:(?:en)|(?:na))?",
 	"lis(?:(?:topadu)|(?:topad))?",
 	"pro(?:(?:sinec)|(?:since))?"
 ]
@@ -73,7 +73,7 @@ mnt2int = {
 	"07" : ["červenec", "července", "čec"],
 	"08" : ["srp", "srpen", "srpna"],
 	"09" : ["zář", "září"],
-	"10" : ["ríj", "ríjen", "ríjna"],
+	"10" : ["říj", "říjen", "října"],
 	"11" : ["lis", "listopad", "listopadu"],
 	"12" : ["pro", "prosinec", "prosince"],
 }
