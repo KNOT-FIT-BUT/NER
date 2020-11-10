@@ -743,6 +743,7 @@ def main():
     parser.add_argument('-l', '--lowercase', action='store_true', default=False, help="Changes all characters in input to the lowercase characters.")
     parser.add_argument('-n', '--names', action='store_true', default=False, help="Recognizes and prints all names with start and end offsets.")
     parser.add_argument('--overlap', action='store_true', default=False, help="Enable overlapping of entities in output from Figa.")
+    parser.add_argument('--intervals', action='store_true', default=False, help="Disable splitting of date intervals.")
     parser.add_argument("--own_kb_daemon", action="store_true", dest="own_kb_daemon", help=("Run own KB daemon although another already running."))
     parser.add_argument("--debug", action="store_true", help="Enable debugging reports.")
     parser.add_argument("--uri", action="store_true", help="Print an URI instead of a line number of the KB.")
@@ -770,13 +771,13 @@ def main():
             line = sys.stdin.readline().rstrip()
             if line in tokens:
                 if "ALL" in line:
-                    ner.recognize(input_string, print_all=True, lowercase=arguments.lowercase, remove=arguments.remove_accent, print_uri=arguments.uri, entities_overlap=arguments.overlap)
+                    ner.recognize(input_string, print_all=True, lowercase=arguments.lowercase, remove=arguments.remove_accent, print_uri=arguments.uri, entities_overlap=arguments.overlap, split_interval=(not arguments.intervals))
                 elif "SCORE" in line:
-                    ner.recognize(input_string, print_score=True, lowercase=arguments.lowercase, remove=arguments.remove_accent, print_uri=arguments.uri, entities_overlap=arguments.overlap)
+                    ner.recognize(input_string, print_score=True, lowercase=arguments.lowercase, remove=arguments.remove_accent, print_uri=arguments.uri, entities_overlap=arguments.overlap, split_interval=(not arguments.intervals))
                 elif "NAMES" in line:
-                    ner.recognize(input_string, find_names=True, lowercase=arguments.lowercase, remove=arguments.remove_accent, print_uri=arguments.uri, entities_overlap=arguments.overlap)
+                    ner.recognize(input_string, find_names=True, lowercase=arguments.lowercase, remove=arguments.remove_accent, print_uri=arguments.uri, entities_overlap=arguments.overlap, split_interval=(not arguments.intervals))
                 else:
-                    ner.recognize(input_string, print_all=False, lowercase=arguments.lowercase, remove=arguments.remove_accent, print_uri=arguments.uri, entities_overlap=arguments.overlap)
+                    ner.recognize(input_string, print_all=False, lowercase=arguments.lowercase, remove=arguments.remove_accent, print_uri=arguments.uri, entities_overlap=arguments.overlap, split_interval=(not arguments.intervals))
                 print(line)
                 sys.stdout.flush()
                 input_string = ""
@@ -793,7 +794,7 @@ def main():
         else:
             input_string = sys.stdin.read()
         input_string = input_string.rstrip()
-        ner.recognize(input_string, print_all=arguments.all, print_score=arguments.score, lowercase=arguments.lowercase, remove=arguments.remove_accent, find_names=arguments.names, print_uri=arguments.uri, entities_overlap=arguments.overlap)
+        ner.recognize(input_string, print_all=arguments.all, print_score=arguments.score, lowercase=arguments.lowercase, remove=arguments.remove_accent, find_names=arguments.names, print_uri=arguments.uri, entities_overlap=arguments.overlap, split_interval=(not arguments.intervals))
 
 if __name__ == "__main__":
     main()
