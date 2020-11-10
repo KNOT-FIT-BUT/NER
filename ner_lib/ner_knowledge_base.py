@@ -71,15 +71,8 @@ class KnowledgeBase():
 
 		try:
 			if self.kb_shm_name == None:
-				if kb_daemon_run: # Zpětná kompatibilita: Pokud již poběží "/decipherKB-daemon_shm" se stejnou verzí KB, tak se na něj připojí.
-					self.kb_shm.start()
-					if not self.checkVersion():
-						self.end()
-						self.init("/decipherKB-daemon_shm-%s" % (self.kb_shm.getVersionFromSrc(self.path_kb)))
-						return self.start()
-				else:
-					self.init("/decipherKB-daemon_shm-%s" % (self.kb_shm.getVersionFromSrc(self.path_kb)))
-					return self.start()
+				self.init("/decipherKB-daemon_shm-%s" % (self.kb_shm.getVersionFromSrc(self.path_kb)))
+				return self.start()
 			else:
 				if kb_daemon_run:
 					self.kb_shm.start()
