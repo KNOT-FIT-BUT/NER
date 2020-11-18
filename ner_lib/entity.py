@@ -65,7 +65,6 @@ class Entity(ABC):
         assert isinstance(register, entity_register.EntityRegister)
 
         self.input_string = input_string
-        self.input_string_bytes = input_string.encode()
 
         self.kb = kb
         self.register = register
