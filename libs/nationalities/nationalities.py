@@ -27,5 +27,10 @@ class Nationalities():
  
 
 	def get_jurisdictions(self):
+		jurisdictions = []
+
+		for jur in self.get_nationalities():
+			jurisdictions.append(jur)
+			jurisdictions.append(jur.lower())
 		return self.get_nationalities()
         

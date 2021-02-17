@@ -1,0 +1,2 @@
+#!/bin/bash
+/mnt/minerva1/nlp/projects/ma/xdocek09/ma/ma -C `dirname $0`/czech_dict.conf $@ 

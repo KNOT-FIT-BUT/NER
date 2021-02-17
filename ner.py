@@ -39,21 +39,22 @@ import uuid
 from name_recognizer import name_recognizer as name_recognizer
 from figa import marker as figa
 from libs import dates
+from libs.lib_loader import LibLoader
 from libs.utils import remove_accent, remove_accent_unicode, get_ner_logger
 from ner import configs
 from ner import ner_knowledge_base as base_ner_knowledge_base
-from ner.ner_loader import NerLoader
 from ner.context import Context
 from ner.entity import Entity
 from ner.entity_register import EntityRegister
+from ner.ner_loader import NerLoader
 
 
 # Pro debugování:
 import difflib, linecache, inspect
 
-from ner import debug
+from libs import debug
 debug.DEBUG_EN = False
-from ner.debug import print_dbg_en
+from libs.debug import print_dbg_en
 #
 
 module_logger = get_ner_logger()
@@ -63,7 +64,7 @@ F_TITLES = os.path.abspath(os.path.join(configs.SCRIPT_DIR, "/ner/inputs/freq_te
 LIST_OF_TITLES = [line.strip() for line in open(F_TITLES)] if os.path.exists(F_TITLES) else []
 
 lng = None
-ner_vars = None
+word_types = None
 
 def offsets_of_paragraphs(input_string):
     """
@@ -88,7 +89,7 @@ def find_proper_nouns(input_string):
     
     result = []
     re_proper_noun_preps = "";
-    for prep in ner_vars.PROPER_NOUNS_PREPS:
+    for prep in word_types.PROPER_NOUNS_PREPS:
         re_proper_noun_preps += r'| {}'.format(re.escape(prep))
     proper_noun_regex = re.compile(r"(?<!\. |\? |! |: |\s{2})[A-Z][A-Za-z\'\-]*( [A-Z][A-Za-z\'\-]*" + re_proper_noun_preps + r")* [A-Z][A-Za-z\'\-]*") # !!!
     for pn in re.finditer(proper_noun_regex, input_string):
@@ -210,7 +211,7 @@ def add_unknown_names(kb, entities_and_dates, input_string, register):
 def adjust_coreferences(entities_and_dates, new_name_entities):
     ed            = entities_and_dates
     names         = new_name_entities
-    wanted_corefs = ner_vars.PRONOUNS.keys()
+    wanted_corefs = word_types.PRONOUNS.keys()
 
     ed_size       = len(ed)
 
@@ -284,7 +285,7 @@ def resolve_coreferences(entities, context, print_all, register):
                     entity = get_nearest_predecessor(e, candidates)
                     if entity:
                         e.set_preferred_sense(entity)
-                elif e.source.lower() in ner_vars.PRONOUNS:
+                elif e.source.lower() in word_types.PRONOUNS:
                     e.resolve_pronoun_coreference(context)
                 elif e.senses:
                     e.is_coreference = False
@@ -469,8 +470,8 @@ def remove_nearby_entities(kb, entities, input_string):
     for ent_ind in range(1, len(entities)):
         ent = entities[ent_ind]
         ent_bef = entities[ent_ind - 1]
-        if ent.has_preferred_sense() and ent.source.lower() not in ner_vars.PRONOUNS:
-            if ent_bef.has_preferred_sense() and ent_bef.source.lower() not in ner_vars.PRONOUNS:
+        if ent.has_preferred_sense() and ent.source.lower() not in word_types.PRONOUNS:
+            if ent_bef.has_preferred_sense() and ent_bef.source.lower() not in word_types.PRONOUNS:
                 # if both entities are divided only by space and they are of the same type
                 if re.search("^[ ]+$", input_string[ent_bef.end_offset:ent.start_offset]):
                     ent_type_set = set([kb.get_ent_type(ent.get_preferred_sense())])
@@ -549,7 +550,7 @@ def recognize(kb, input_string, print_all=False, print_result=True, print_score=
     for e in figa_entities:
         if e.is_nationality:
             nationalities.append(e)
-        elif e.senses or e.partial_match_senses or e.source.lower() in ner_vars.PRONOUNS:
+        elif e.senses or e.partial_match_senses or e.source.lower() in word_types.PRONOUNS:
             entities.append(e)
     debugChangesInEntities(entities, "removing entities without any sense")
 
@@ -586,7 +587,7 @@ def recognize(kb, input_string, print_all=False, print_result=True, print_score=
     context = Context(entities_and_dates, kb, paragraphs, nationalities) # Znovu se vytváří kontext, aby došlo k novému vypočítání statistik pro každý odstavec. Disabiguací s kontextem totiž došlo ke změnám preferovaných významů některých entit.
 
     # resolving coreferences
-    name_coreferences = [e for e in entities if e.source.lower() not in ner_vars.PRONOUNS and not e.source.lower().startswith("the ")]
+    name_coreferences = [e for e in entities if e.source.lower() not in word_types.PRONOUNS and not e.source.lower().startswith("the ")]
     resolve_coreferences(name_coreferences, context, print_all, register) # Zde se ověřuje, zda-li části jmen jsou odkazy nebo samostatné entity.
     debugChangesInEntities(entities, linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-1))
     resolve_coreferences(entities, context, print_all, register) # Dle předchozích kroků se dosadí správné odkazy.
@@ -628,7 +629,7 @@ def recognize(kb, input_string, print_all=False, print_result=True, print_score=
 
 def main():
     global lng
-    global ner_vars
+    global word_types
     
     # argument parsing
     parser = argparse.ArgumentParser()
@@ -647,16 +648,22 @@ def main():
     arguments = parser.parse_args()
     
     arguments.lang = arguments.lang.lower()
+    if arguments.lang in configs.LANGS_MAP:
+        arguments.lang = configs.LANGS_MAP[arguments.lang]
+
     if arguments.lang in configs.LANGS_ALLOWED:
         lng = arguments.lang
     else:
-        lng = configs.LANGS_ALLOWED[0]
+        if len(configs.LANGS_ALLOWED) == 1:
+            lng = next(iter(configs.LANGS_ALLOWED))
+        else:
+            raise Exception(f'Please select one of supported language ({", ".join(configs.LANGS_ALLOWED)}) by parameter "--lang".')
     
     if not debug.DEBUG_EN and arguments.debug:
         debug.DEBUG_EN = True
         
     
-    ner_vars = NerLoader.load(module = "ner_vars", lang = lng, initiate = "NerVars")
+    word_types = LibLoader.load('word_types', lng, 'WordTypes')
     
     # allowed tokens for daemon mode
     tokens = set(["NER_NEW_FILE", "NER_END", "NER_NEW_FILE_ALL", "NER_END_ALL", "NER_NEW_FILE_SCORE", "NER_END_SCORE", "NER_NEW_FILE_NAMES", "NER_END_NAMES"])

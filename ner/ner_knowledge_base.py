@@ -41,7 +41,7 @@ from importlib.machinery import SourceFileLoader
 from libs.utils import remove_accent
 from libs.entities.entity_loader import EntityLoader
 # Pro debugování:
-from .debug import print_dbg, print_dbg_en, cur_inspect
+from libs.debug import print_dbg, print_dbg_en, cur_inspect
 
 
 class KnowledgeBase(ABC):

@@ -3,7 +3,7 @@
 
 from abc import ABC
 
-class NerVars(ABC):
+class WordTypes(ABC):
     def __init__(self, lang):
         pass
     

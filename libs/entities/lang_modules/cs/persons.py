@@ -12,7 +12,6 @@ from ...persons import Persons as BasePersons
 class Persons(BasePersons):
 	def get_FORBIDDEN_NAMES(self):
 		return ["pán", "pan", "paní", "p.", "svatý", "svatá", "sv."]
-#	ROLE_PREFIX = "the"
 
 	def get_LOCATION_PREPOSITIONS(self):
 		return super().get_LOCATION_PREPOSITIONS() + ["z", "ze"]

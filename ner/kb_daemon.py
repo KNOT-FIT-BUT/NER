@@ -10,7 +10,7 @@ import time
 
 from .configs import *
 # Pro debugování:
-from .debug import print_dbg, print_dbg_en
+from libs.debug import print_dbg, print_dbg_en
 
 # # Timeouty v sekundách:
 Timeout_SharedKB_start = 300

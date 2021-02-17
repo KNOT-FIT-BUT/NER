@@ -1,0 +1,168 @@
+S
+S -> !NUMERIC S2
+
+#Volitelná skupina přídavných jmen následovaných nutným podstatným jménem, které může být následováno
+#další volitelnou skupinou přídavných jmen.
+#Příklad: Mnichovská dohoda
+#	Slovenské národní povstání
+#	komunistický převrat v Československu
+
+S2 -> NUM_ADJ_NOUN_ALL END
+S2 -> NUM_ADJ_NOUN_ALL !NUM_ADJ_NOUN_CONTINUE
+
+NUM_ADJ_NOUN_ALL -> NUM_ADJ_NOUN(n=S,g=M)
+NUM_ADJ_NOUN_ALL -> NUM_ADJ_NOUN(n=S,g=I)
+NUM_ADJ_NOUN_ALL -> NUM_ADJ_NOUN(n=S,g=N)
+NUM_ADJ_NOUN_ALL -> NUM_ADJ_NOUN(n=S,g=F)
+NUM_ADJ_NOUN_ALL -> NUM_ADJ_NOUN(n=P,g=M)
+NUM_ADJ_NOUN_ALL -> NUM_ADJ_NOUN(n=P,g=I)
+NUM_ADJ_NOUN_ALL -> NUM_ADJ_NOUN(n=P,g=N)
+NUM_ADJ_NOUN_ALL -> NUM_ADJ_NOUN(n=P,g=F)
+#/
+
+
+#Číslovka s volitelnou skupinou přídavných jmen vázajícíh se na první ze skupiny podstatných jmén.
+#dovolujeme i číslovky mezi (příklad: zánik první republiky)
+NUM_ADJ_NOUN(c=1,n,g) -> !ROM_OR_NUMERIC NUM(c=$c,n=$n,g=$g) ADJ_GROUP(c=$c,n=$n,g=$g) NUM(c=$c,n=$n,g=$g) LOC2(c=$c,n=$n,g=$g) NUM(c=$c,n=$n,g=$g) ADJ_GROUP(c=$c,n=$n,g=$g) NUM(c=$c,n=$n,g=$g)
+
+#stejné jako NUM_ADJ_NOUN, ale má zafixovaný rod a číslo
+NUM_ADJ_NOUN_CASE_SELECT(c=1) -> NUM_ADJ_NOUN(c=$c,n=S,g=M)
+NUM_ADJ_NOUN_CASE_SELECT(c=1) -> NUM_ADJ_NOUN(c=$c,n=S,g=I)
+NUM_ADJ_NOUN_CASE_SELECT(c=1) -> NUM_ADJ_NOUN(c=$c,n=S,g=N)
+NUM_ADJ_NOUN_CASE_SELECT(c=1) -> NUM_ADJ_NOUN(c=$c,n=S,g=F)
+NUM_ADJ_NOUN_CASE_SELECT(c=1) -> NUM_ADJ_NOUN(c=$c,n=P,g=M)
+NUM_ADJ_NOUN_CASE_SELECT(c=1) -> NUM_ADJ_NOUN(c=$c,n=P,g=I)
+NUM_ADJ_NOUN_CASE_SELECT(c=1) -> NUM_ADJ_NOUN(c=$c,n=P,g=N)
+NUM_ADJ_NOUN_CASE_SELECT(c=1) -> NUM_ADJ_NOUN(c=$c,n=P,g=F)
+
+#neohebná verze NUM_ADJ_NOUN_CASE_SELECT
+!NUM_ADJ_NOUN_CASE_SELECT(c=1) -> NUM_ADJ_NOUN_CASE_SELECT(c=$c)
+
+!NUM_ADJ_NOUN_CONTINUE -> 1{t=E} !CONJ 1{t=E}	#Např pro: Národní akademické divadlo opery a baletu
+
+#Nevolitelná předložková skupina
+#Příklad: Pod Šibenicí
+S -> !PREP_GROUP_MANDATORY END
+
+#Obecné přídavné jméno a vlastní jméno místní
+S2 -> 2{c=1,t=E,n=S,g=M,f=GW} 1{c=1,t=E,n=S,g=M,note=jL} END
+S2 -> 2{c=1,t=E,n=S,g=I,f=GW} 1{c=1,t=E,n=S,g=I,note=jL} END
+S2 -> 2{c=1,t=E,n=S,g=N,f=GW} 1{c=1,t=E,n=S,g=N,note=jL} END
+S2 -> 2{c=1,t=E,n=S,g=F,f=GW} 1{c=1,t=E,n=S,g=F,note=jL} END
+S2 -> 2{c=1,t=E,n=P,g=M,f=GW} 1{c=1,t=E,n=P,g=M,note=jL} END
+S2 -> 2{c=1,t=E,n=P,g=I,f=GW} 1{c=1,t=E,n=P,g=I,note=jL} END
+S2 -> 2{c=1,t=E,n=P,g=N,f=GW} 1{c=1,t=E,n=P,g=N,note=jL} END
+S2 -> 2{c=1,t=E,n=P,g=F,f=GW} 1{c=1,t=E,n=P,g=F,note=jL} END
+
+#Skupina přídavných jmen
+#Příklad: Velký a Malý Kamýk
+#	Velký a Malý Tisý	
+#	Zubří
+S2 -> NUM(n=S,g=M) ADJ_GROUP_MANDATORY(n=S,g=M) END
+S2 -> NUM(n=S,g=M) ADJ_GROUP_MANDATORY(n=S,g=M) LOC2(n=S,g=M) END
+S2 -> NUM(n=S,g=I) ADJ_GROUP_MANDATORY(n=S,g=I) END
+S2 -> NUM(n=S,g=I) ADJ_GROUP_MANDATORY(n=S,g=I) LOC2(n=S,g=I) END
+S2 -> NUM(n=S,g=N) ADJ_GROUP_MANDATORY(n=S,g=N) END
+S2 -> NUM(n=S,g=N) ADJ_GROUP_MANDATORY(n=S,g=N) LOC2(n=S,g=N) END
+S2 -> NUM(n=S,g=F) ADJ_GROUP_MANDATORY(n=S,g=F) END
+S2 -> NUM(n=S,g=F) ADJ_GROUP_MANDATORY(n=S,g=F) LOC2(n=S,g=F) END
+S2 -> NUM(n=P,g=M) ADJ_GROUP_MANDATORY(n=P,g=M) END
+S2 -> NUM(n=P,g=M) ADJ_GROUP_MANDATORY(n=P,g=M) LOC2(n=P,g=M) END
+S2 -> NUM(n=P,g=I) ADJ_GROUP_MANDATORY(n=P,g=I) END
+S2 -> NUM(n=P,g=I) ADJ_GROUP_MANDATORY(n=P,g=I) LOC2(n=P,g=I) END
+S2 -> NUM(n=P,g=N) ADJ_GROUP_MANDATORY(n=P,g=N) END
+S2 -> NUM(n=P,g=N) ADJ_GROUP_MANDATORY(n=P,g=N) LOC2(n=P,g=N) END
+S2 -> NUM(n=P,g=F) ADJ_GROUP_MANDATORY(n=P,g=F) END
+S2 -> NUM(n=P,g=F) ADJ_GROUP_MANDATORY(n=P,g=F) LOC2(n=P,g=F) END
+#/
+
+#Uvodní část v 1. pádě ohebná. Zbytek v 2. neohebný.
+#	Spojené království Velké Británie a Severního Irska
+S2 -> NUM_ADJ_NOUN_CASE_SELECT !NUM_ADJ_NOUN_CASE_SELECT(c=2) END
+S2 -> NUM_ADJ_NOUN_CASE_SELECT !NUM_ADJ_NOUN_CASE_SELECT(c=2) !CONJ !NUM_ADJ_NOUN_CASE_SELECT(c=2) END
+
+!ADVERB -> 6{t=E}
+!ADVERB -> ε
+
+!ABBER_TITLE -> !ABBER_TITLE_MANDATORY
+!ABBER_TITLE -> ε
+
+!ABBER_TITLE_MANDATORY -> ia{t=I}
+!ABBER_TITLE_MANDATORY -> t{t=T}
+!ABBER_TITLE_MANDATORY -> a{t=A,r="^(?!^((X{1,3}(IX|IV|V?I{0,3}))|((IX|IV|I{1,3}|VI{0,3})))\.?$)((\p{Lu}\p{Lu}+\.?)|(..+\.))$"} #regex vylučuje římskou číslici, mimo to musí končit tečkou nebo obsahovat pouze velká písmena a mít alespoň 2 písmena
+
+
+END -> !PREP_GROUP !ROMAN_NUM !ABBER_TITLE !NUMERIC NEXT
+
+#číslovka
+#Příklad výskytu: Devět Křížů
+NUM(c=1,n,g) -> 4{c=$c,t=E,n=$n,g=$g}
+NUM(c=1,n,g) -> ε
+#/
+
+#volitelna nesklona rimska ci bezna cislice
+!ROM_OR_NUMERIC -> !ROMAN_NUM
+!ROM_OR_NUMERIC -> !NUMERIC
+!ROM_OR_NUMERIC -> ε
+
+!ROMAN_NUM -> r{t=R}
+!ROMAN_NUM -> ε
+
+!NUMERIC -> n{t=4}
+!NUMERIC -> ε
+
+#uvození spojkou dalšího jména (další části) ve jméně
+#Příklad: Jižní Georgie a Jižní Sandwichovy ostrovy
+NEXT -> !CONJ S
+NEXT -> ε
+
+!CONJ -> 8{t=8}
+
+#Skupina přídavných jmen
+# i s volitelným příslovcem
+# vhodné např pro: Etiopská lidově demokratická republika
+
+ADJ_GROUP_MANDATORY(c=1,n,g) -> !ADVERB  2{c=$c,t=E,n=$n,g=$g} ADJ_GROUP(c=$c,n=$n,g=$g)
+ADJ_GROUP(c=1,n,g) -> !ADVERB  2{c=$c,t=E,n=$n,g=$g} ADJ_GROUP(c=$c,n=$n,g=$g)
+ADJ_GROUP(c=1,n,g) -> !ADVERB  2{c=1,t=E,n=S,g=M} !CONJ ADJ_GROUP_MANDATORY(c=$c,n=$n,g=$g)
+ADJ_GROUP(c=1,n,g) -> ε
+#/
+
+#Podstatné jméno následováno volitelnými ne/ohebnými podstatnými jmény
+#pokud je podsatné jméno ve druhém pádě, tak je neohebné. Pokud v 1. tak je ohebné.
+#Příklad: Rozhledna Vladimíra Menšíka
+#	Palác Flóra
+#	Brno
+#	Jirsko 2.díl
+
+LOC2(c=1,n,g) -> 1{c=$c,t=E,n=$n,g=$g} !ABBER_TITLE_MANDATORY !VOLUNTARY_NO_FLEX_N	#Kaple sv. Anny
+LOC2(c=1,n,g) -> 1{c=$c,t=E,n=$n,g=$g} !NUMERIC !NAME_NOMINATIVE	#Jirsko 2.díl (nevím jestli je 2.díl nominativ, ale nema se ohybat)
+LOC2(c=1,n,g) -> 1{c=$c,t=E,n=$n,g=$g,f=GW} !NAME_NOMINATIVE	#Palác Flóra
+LOC2(c=1,n,g) -> 1{c=$c,t=E,n=$n,g=$g,f=GW} !VOLUNTARY_NO_FLEX_N
+LOC2(c=1,n,g) -> 1{c=$c,t=E,n=$n,g=$g,f=NGW} !VOLUNTARY_NO_FLEX_N
+LOC2(c=1,n,g) -> 1{c=$c,t=E,n=$n,g=$g,f=NGW} LOC2_CONTINUE(c=$c,n=$n,g=$g)
+LOC2_CONTINUE(c=1,n,g) -> 1{c=$c,t=E,n=$n,g=$g}
+LOC2_CONTINUE(c=1,n,g) ->ε
+
+!NAME_NOMINATIVE -> 1{c=1,t=E} !NAME_NOMINATIVE
+!NAME_NOMINATIVE -> 1{c=1,t=E}
+!VOLUNTARY_NO_FLEX_N -> 1{c=2,t=E} !VOLUNTARY_NO_FLEX_N
+!VOLUNTARY_NO_FLEX_N -> ε
+#/
+
+
+
+#Předložková skupina
+!PREP_GROUP_MANDATORY -> 7{t=7} !AFTER_PREP
+!PREP_GROUP -> 7{t=7} !AFTER_PREP
+!PREP_GROUP -> ε
+!AFTER_PREP -> 1{t=L} !AFTER_PREP_ENDING
+!AFTER_PREP -> 2{t=L} !AFTER_PREP_ENDING
+!AFTER_PREP -> 4{t=L} !AFTER_PREP_ENDING
+!AFTER_PREP -> a{t=A,r="^(?!^((X{1,3}(IX|IV|V?I{0,3}))|((IX|IV|I{1,3}|VI{0,3})))\.?$)((\p{Lu}\p{Lu}+\.?)|(..+\.))$"} !AFTER_PREP_ENDING
+!AFTER_PREP -> 7{t=7} !AFTER_PREP
+!AFTER_PREP -> 1{t=L} 8{t=8} 1{t=L} !AFTER_PREP
+!AFTER_PREP -> r{t=R} !AFTER_PREP_ENDING
+!AFTER_PREP_ENDING -> !AFTER_PREP
+!AFTER_PREP_ENDING -> ε
+#/

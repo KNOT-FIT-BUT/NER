@@ -4,9 +4,9 @@
 import sys
 sys.path.append('../..')
 
-from ...ner_vars import NerVars as BaseNerVars
+from ...word_types import WordTypes as BaseWordTypes
 
-class NerVars(BaseNerVars):
+class WordTypes(BaseWordTypes):
     # pronouns along with their type they refer to
     PRONOUNS = {
         "on"  : "M",

@@ -4,9 +4,9 @@
 # Author: Tomáš Volf, ivolf[at]fit.vutbr.cz
 
 import regex
-import libs.reUtils as reUtils
+import libs.re_utils as re_utils
 from abc import ABC
-from libs.automataVariants import AutomataVariants
+from libs.automata_variants import AutomataVariants
 from libs.utils import remove_accent
 
 
@@ -43,7 +43,7 @@ class Persons(ABC):
 		self.lang = lang
 
 
-	def get_normalized_subnames(self, src_names, roles, separate_to_names = False, config = AutomataVariants.DEFAULT):
+	def get_normalized_subnames(self, src_names, roles = [], separate_to_names = False, config = AutomataVariants.DEFAULT):
 		'''
 		From a list of surnames for a given person, it creates a set of all possible surnames variants respecting settings of lowercase / non-accent / ..
 		For example:
@@ -59,12 +59,12 @@ class Persons(ABC):
 
 		# tmp_preposition in the form of "([Vv]an|[Zz]u|..)"
 		# Warning: contain space on the beginning to avoid match "Ivan Novák" as "van Novák" => it is needed to get substring from second char
-		tmp_prepositions = reUtils.list2FirstIncaseAlternation(self.NAME_PREPOSITIONS)
+		tmp_prepositions = re_utils.list2FirstIncaseAlternation(self.NAME_PREPOSITIONS)
 		regex_prepositions_remove = regex.compile(r" {} ".format(tmp_prepositions))
 		regex_prepositions_name = regex.compile(r" {} \p{{Lu}}\p{{L}}+".format(tmp_prepositions), flags=regex_flags)
 
 		# tmp_prefixes in the form og "([Dd]\\'|[Oo]\\'|..)"
-		tmp_prefixes = reUtils.list2FirstIncaseAlternation(self.NAME_PREFIXES)
+		tmp_prefixes = re_utils.list2FirstIncaseAlternation(self.NAME_PREFIXES)
 		regex_prefixes_only_check = regex.compile(r"^{}\p{{Lu}}".format(tmp_prefixes), flags=regex_flags)
 		regex_prefixes_only = regex.compile(r"^{}".format(tmp_prefixes))
 
@@ -108,7 +108,10 @@ class Persons(ABC):
 			else:
 				subnames = [name]
 
+			if not separate_to_names:
+				subnames.append(name_with_location)
 			if subname_location and subname_location != name_with_location:
+				# Name part without location
 				subnames.append(subname_location)
 
 			# searching for a role
@@ -116,11 +119,10 @@ class Persons(ABC):
 				role = regex_role.match(name)
 				if role:
 					match = role.group()
-					if match.split(" ")[1] in roles:
-						names.add(match)
-						match = match.lower()
-						names.add(match)
-						names.add(match.title())
+					role_itself = match.split(" ")[1 if self.get_ROLE_PREFIX() else 0]
+					if role_itself.lower() not in roles_lower:
+						names.add(match) # For case, that role has specific capitalization
+						roles_lower.append(role_itself.lower())
 
 			for subname in subnames:
 				if not len(subname):
@@ -131,7 +133,7 @@ class Persons(ABC):
 				subname_lower = subname.lower()
 
 				# skip invalid / forbidden names
-				if subname_lower not in self.get_FORBIDDEN_NAMES() or subname_lower not in roles:
+				if subname_lower not in self.get_FORBIDDEN_NAMES() or subname_lower not in roles_lower:
 					# normalize name to start with capital, including name with prefix (for example o'... => O'...)
 					subname = subname[0].upper() + subname[1:]
 					# remove accent, because python re module doesn't support [A-Z] for Unicode
@@ -172,12 +174,15 @@ class Persons(ABC):
 					if (not subname[0].islower()):
 						names.add(subname[0].lower() + subname[1:])
 
-		for role in roles:
+		for role in roles_lower:
 			names.add(role)
+			names.add(role.capitalize())
+			names.add(role.title())
 			if self.get_ROLE_PREFIX():
 				role = self.get_ROLE_PREFIX().lower() + role
 				names.add(role)
-				names.add(role.title())
+				names.add(role.capitalize())
+				names.add(role.title()) # For english - every first letter is upper
 
 		return names
 

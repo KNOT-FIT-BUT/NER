@@ -3,12 +3,13 @@
 
 import os
 
-LANGS_ALLOWED = set(['en', 'cz'])
+LANGS_ALLOWED = set(['cs'])
+LANGS_MAP = {'cz': 'cs'}
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DIRPATH_KB_DAEMON = os.path.abspath(os.path.join(SCRIPT_DIR, "../SharedKB/var2"))
 PATH_KB_DAEMON = os.path.abspath(os.path.join(DIRPATH_KB_DAEMON, "decipherKB-daemon"))
-PATH_KB = os.path.abspath(os.path.join(SCRIPT_DIR, "inputs/KB_all.tsv"))
+PATH_KB = os.path.abspath(os.path.join(SCRIPT_DIR, "inputs/KB.tsv"))
 
 KB_MULTIVALUE_DELIM = "|"
 

@@ -8,12 +8,13 @@ from . import entity_register
 from abc import ABC, abstractmethod
 from .configs import KB_MULTIVALUE_DELIM # !!! jen CZ addons
 from .ner_loader import NerLoader
+from libs.lib_loader import LibLoader
 from libs.nationalities.nat_loader import NatLoader
 from libs.utils import ncr2unicode, remove_accent_unicode, get_ner_logger
 
-from . import debug
+from libs import debug
 debug.DEBUG_EN = False
-from .debug import cur_inspect
+from libs.debug import cur_inspect
 
 module_logger = get_ner_logger()
 
@@ -40,7 +41,7 @@ class Entity(ABC):
         self.static_score = []
         self.context_score = []
         self.coreferences = set()
-        self.ner_vars = NerLoader.load(module = "ner_vars", lang = self.lang, initiate = "NerVars")
+        self.word_types = LibLoader.load(module = "word_types", lang = self.lang, initiate = "WordTypes")
 
 
     def create(self, entity_attributes, kb, input_string, register):
@@ -134,7 +135,7 @@ class Entity(ABC):
         """ Chooses the correct sense of the entity as the preferred one (without context). """
 
         # we don't resolve coreference in this step
-        if self.source.lower() in self.ner_vars.PRONOUNS or self.partial_match_senses:
+        if self.source.lower() in self.word_types.PRONOUNS or self.partial_match_senses:
             self.is_coreference = True
             return
 
@@ -150,7 +151,7 @@ class Entity(ABC):
         # search for one of verbs in rest of the sentence
         sentence = self.right_sentence()
         verb_index = -1
-        for verb in self.ner_vars.VERBS:
+        for verb in self.word_types.VERBS:
             verb_index = sentence.find(verb)
             if(verb_index != -1):
                 break
@@ -266,11 +267,11 @@ class Entity(ABC):
             module_logger.info("Jump behind pronoun coreference %r in place %r:\"...%s...\", because his right context contains verb BE.", self.source, self.start_offset, self.input_string_in_unicode[self.start_offset-10:self.end_offset+10], extra={"context": cur_inspect()})
             return
 
-        pronoun_type = self.ner_vars.PRONOUNS[self.source.lower()]
+        pronoun_type = self.word_types.PRONOUNS[self.source.lower()]
         # NOTE: Odtud se dějí zajímavé (až magické) věci, které nutně potřebují komentáře {
         if 'M' in pronoun_type:
             # FIXME: To níže, to je špatný HACK. (komentováno v původním anglickém kódu - trochu odlišný)
-            if self.source.lower() in self.ner_vars.PRONOUNS and 'M' in self.ner_vars.PRONOUNS[self.source.lower()]:
+            if self.source.lower() in self.word_types.PRONOUNS and 'M' in self.word_types.PRONOUNS[self.source.lower()]:
                 if context.last_unknown_gender:
                     context.before_last_male = context.last_male
                     context.last_male = context.last_unknown_gender
@@ -308,7 +309,7 @@ class Entity(ABC):
 
         elif 'F' in pronoun_type:
             # point to last female
-            if self.source.lower() in self.ner_vars.PRONOUNS and 'F' in self.ner_vars.PRONOUNS[self.source.lower()]:
+            if self.source.lower() in self.word_types.PRONOUNS and 'F' in self.word_types.PRONOUNS[self.source.lower()]:
                 if context.last_unknown_gender:
                     context.before_last_female = context.last_female
                     context.last_female = context.last_unknown_gender
