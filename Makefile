@@ -1,6 +1,7 @@
 .PHONY: all clean
 
 all:
+	git submodule update --init
 	make -C ./SharedKB/var2/
 	make -C ./figa/src/
 

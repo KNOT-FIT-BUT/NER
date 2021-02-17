@@ -54,10 +54,11 @@ getGitBasedVersion()
 {
   _OLDPWD=$PWD
   cd $1
+
   VERSION=`git rev-parse --short HEAD 2>/dev/null`
-  if test $? -eq 0
+  if test "${?}" -eq 0 && test "$PWD" == "`git rev-parse --show-toplevel`"
   then
-    if ! test -z `git status --short`
+    if ! test -z "`git status --short`"
     then
       VERSION="${VERSION}_dirty_`date \"+%Y%m%d-%H%M%S\"`"
     fi
@@ -241,6 +242,8 @@ fi
 # cesta pro import modulů do Python skriptů
 export PYTHONPATH=../../:$PYTHONPATH
 
+make -C ..
+
 mkdir -p "${DIR_OUTPUTS}"
 
 VERSION_FILE="${DIR_OUTPUTS}/VERSIONS"
@@ -254,10 +257,9 @@ then
   echo "CZECH NAMEGEN version: ${NAMEGEN_VERSION}" | tee -a "${VERSION_FILE}"
 fi
 
-DICTS_VERSION=`getGitBasedVersion "."`
+DICTS_VERSION=`getGitBasedVersion ".."`
 echo "DICTS version: ${DICTS_VERSION}" | tee -a "${VERSION_FILE}"
 echo "---------------------------------"
-
 
 #=====================================================================
 F_ENTITIES_WITH_TYPEFLAGS="entities_with_typeflags_${KB_VERSION}.tsv"
