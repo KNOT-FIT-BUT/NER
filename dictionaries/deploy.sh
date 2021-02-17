@@ -7,7 +7,7 @@ usage()
   echo -e "\t-h --help              Show this message and exit"
   echo -e "\t--lang=<language>      Select language version to work with"
   echo -e "\t-u [<login=${USER}>]   Upload (deploy) automata to webstorage via given login (default current user)"
-  echo -e "\t--dev                  Development mode (upload to separate space to prevent forming a new production version of automata))"
+  echo -e "\t--dev                  Development mode (upload to separate space to prevent forming a new production version of automata)"
   echo ""
 }
 
@@ -65,9 +65,9 @@ if $DEPLOY
 then  
   # Change directory to outputs
   DIR_LAUNCHED=`dirname "${0}"`
-  if test "${DIR_LAUNCHED}" == "."
+  if test "${DIR_LAUNCHED::1}" != "/"
   then
-    DIR_LAUNCHED=$PWD
+    DIR_LAUNCHED=`readlink -f "${DIR_LAUNCHED}"`
   fi
   DIR_WORKING="${DIR_LAUNCHED}/outputs/${LANG}"
   cd "${DIR_WORKING}" 2>/dev/null
@@ -115,11 +115,11 @@ then
   echo "Upload automata debug files to ${DEPLOY_FOLDER_BASE}"
   scp "${DEPLOY_FILE_DEBUG_FILES}" "${DEPLOY_CONNECTION}:${DEPLOY_FOLDER_BASE}"
   echo "Unpacking automata in ${DEPLOY_FOLDER_BASE}"
-  ssh "${DEPLOY_CONNECTION}" "cd \"${DEPLOY_FOLDER_BASE}\"; echo \$PWD; tar -xvf \"${DEPLOY_FILE_AUTOMATA}\"" 2>&1 | sed 's/^/  * /'
+  ssh "${DEPLOY_CONNECTION}" "cd \"${DEPLOY_FOLDER_BASE}\"; tar -xvf \"${DEPLOY_FILE_AUTOMATA}\"" 2>&1 | sed 's/^/  * /'
   echo "Unpacking automata debug files in ${DEPLOY_FOLDER_BASE}"
   ssh "${DEPLOY_CONNECTION}" "cd \"${DEPLOY_FOLDER_BASE}\"; tar -xvf \"${DEPLOY_FILE_DEBUG_FILES}\"" 2>&1 | sed 's/^/  * /'
   echo "Change symlink of \"new\" to this latest version of automata"
-  ssh "${DEPLOY_CONNECTION}" "cd \"${DEPLOY_FOLDER_BASE}\"; cd ..; echo \$PWD; ln -sfT \"${DEPLOY_BASENAME}\" new"
+  ssh "${DEPLOY_CONNECTION}" "cd \"${DEPLOY_FOLDER_BASE}\"; cd ..; ln -sfT \"${DEPLOY_BASENAME}\" new"
 
   cd "${DIR_WORKING}"
   rm -rf deploy 2>/dev/null

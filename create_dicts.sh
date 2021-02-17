@@ -91,16 +91,26 @@ if $LOG; then
   exec > create_dicts.sh.fifo.stdout 2> create_dicts.sh.fifo.stderr
 fi
 
-OLDPWD=$PWD
-LAUNCHED=`dirname $0`
+DIR_LAUNCHED=$PWD
+DIR_WORKING=`dirname $(readlink -f "${0}")`
 
-cd "${LAUNCHED}"
+cd "${DIR_WORKING}"
+
+if test "${DICTS_BASEDIR::1}" != "/"
+then
+  DICTS_BASEDIR="${DIR_WORKING}/${DICTS_BASEDIR}"
+fi
+
+if test "${DIR_KB::1}" != "/"
+then
+  DIR_KB="${DIR_WORKING}/${DIR_KB}"
+fi
+
 
 mkdir -p "${DIR_KB}"
 
 
 KB_SRC="http://knot.fit.vutbr.cz/NAKI_CPK/NER_ML_inputs/KB/KB_${LANG}/new/KB.tsv"
-echo $KB_SRC
 KB_FILE="${DIR_KB}/KB.tsv"
 KB_ETAG_FILE="${DIR_KB}/${KB_ETAG_FILE}"
 echo "CHECKING of newer version of KB..."
@@ -112,11 +122,6 @@ then
   >&2 echo "ERROR: Network connection problem or unavailable CPK storage."
   exit 10
 fi
-
-echo "ETAG REMOTE: ${KB_ETAG_REMOTE}"
-echo "ETAG LOCAL: ${KB_ETAG_LOCAL}"
-test -s "${KB_FILE}"
-echo "KB_FILE: $?"
 
 if test "$KB_ETAG_REMOTE" != "$KB_ETAG_LOCAL" || ! test -s "${KB_FILE}"
 then
@@ -139,12 +144,9 @@ echo "LAUNCHING dictionaries creation"
 
 ${DICTS_BASEDIR}/create_cedar.sh -a --lang=${LANG} -k "${KB_FILE}"
 
-# nahrát jednotlivé?
-# zabalit a nahrát jako celek
-
 if $DEPLOY
 then
   ${DICTS_BASEDIR}/deploy.sh -u ${DEPLOY_USER} ${DEPLOY_ARGS}
 fi
 
-cd "${OLDPWD}"
+cd "${DIR_LAUNCHED}"
