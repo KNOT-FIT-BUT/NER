@@ -35,11 +35,11 @@ DEBUG_EN = True
 
 
 def getInspectInfo(iContext):
-	callerframerecord = inspect.stack()[iContext]
+	callerframerecord = inspect.stack()[iContext + 1]
 	frame = callerframerecord[0]
 	info = inspect.getframeinfo(frame)
 	
-	return "(%s, %s, %s, time=%r, cpuTime=%r)" % (info.filename, info.function, info.lineno, time.time(), time.clock())
+	return "(%s, %s, %s, time=%r, cpuTime=%r)" % (info.filename, info.function, info.lineno, time.time(), time.process_time())
 
 
 def print_dbg_en(*args, **kwargs):

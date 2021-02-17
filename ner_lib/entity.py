@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import name_recognizer.data_row as module_data_row
+from abc import ABC, abstractmethod
+
+# <LOKÁLNÍ IMPORTY>
 from . import ner_knowledge_base as base_ner_knowledge_base
 from . import context as modContext
 from . import entity_register
-from abc import ABC, abstractmethod
 from .configs import KB_MULTIVALUE_DELIM # !!! jen CZ addons
 from .ner_loader import NerLoader
-from libs.nationalities.nat_loader import NatLoader
-from libs.utils import ncr2unicode, remove_accent_unicode, get_ner_logger
+from ..libs.nationalities.nat_loader import NatLoader
+from ..libs.utils import ncr2unicode, remove_accent_unicode, get_ner_logger
 
 from . import debug
 debug.DEBUG_EN = False
 from .debug import cur_inspect
+# </LOKÁLNÍ IMPORTY>
 
 module_logger = get_ner_logger()
 
@@ -25,6 +27,7 @@ class Entity(ABC):
         
         self.next_to_same_type = False
         self.display_score = False
+        self.display_uri = False
         self.poorly_disambiguated = True
         self.is_coreference = False
         self.is_name = False
@@ -41,6 +44,8 @@ class Entity(ABC):
         self.context_score = []
         self.coreferences = set()
         self.ner_vars = NerLoader.load(module = "ner_vars", lang = self.lang, initiate = "NerVars")
+        
+        self.parents = [] # When an entity has overlap with another entity, then they will be joined to new entity
 
 
     def create(self, entity_attributes, kb, input_string, register):
@@ -60,7 +65,6 @@ class Entity(ABC):
         assert isinstance(register, entity_register.EntityRegister)
 
         self.input_string = input_string
-        self.input_string_bytes = input_string.encode()
 
         self.kb = kb
         self.register = register
@@ -83,19 +87,6 @@ class Entity(ABC):
 
         # possible coreferences - people whose names are supersets of an entity
         self.partial_match_senses = self.kb.people_named(remove_accent_unicode(self.source).lower())
-
-    @classmethod
-    def from_data_row(cls, kb, dr, input_string, register):
-        assert isinstance(kb, base_ner_knowledge_base.KnowledgeBase)
-        assert isinstance(dr, module_data_row.DataRow)
-        assert isinstance(input_string, str)
-        assert isinstance(register, entity_register.EntityRegister)
-        
-        input_string_bytes = input_string.encode()
-
-        entity = cls(str(dr).split('\t'), kb, input_string, input_string_bytes, register)
-        entity.is_name = True
-        return entity
 
     def set_preferred_sense(self, _sense):
         assert isinstance(_sense, (int, Entity)) or _sense == None
@@ -165,8 +156,8 @@ class Entity(ABC):
         if(verb_index != -1):
             proffesions = []
             for s in self.senses:
-                if(self.kb.get_ent_type(s) in ["person", "person:artist", "person:fictional"]):
-                    proffesions = self.kb.get_data_for(s, "JOBS")
+                if "person" in self.kb.get_ent_type(s):
+                    proffesions = self.kb.get_data_for(s, "ROLES")
                     if(proffesions):
                         proffesions = proffesions.split(KB_MULTIVALUE_DELIM)
                         proffesions = [p for p in proffesions if sentence.find(" " + p + " ", verb_index) != -1]
@@ -176,8 +167,8 @@ class Entity(ABC):
             if(proffesions):
                 new_senses = []
                 for s in self.senses:
-                    if self.kb.get_ent_type(s) in ["person", "person:artist", "person:fictional"]:
-                        for proffesion in self.kb.get_data_for(s, "JOBS").split(KB_MULTIVALUE_DELIM):
+                    if "person" in self.kb.get_ent_type(s):
+                        for proffesion in self.kb.get_data_for(s, "ROLES").split(KB_MULTIVALUE_DELIM):
                             if(proffesion in proffesions):
                                 new_senses.append(s)
                                 break
@@ -225,14 +216,14 @@ class Entity(ABC):
             static_score = self.kb.get_score(i)
             context_score = 0
             # !!! TODO: merge location and geo? is it realy 'geo'?
-            if 'geo' in ent_type_set:
+            if ent_type_set & {"geographical", "location"}:
                 context_score = context.country_percentile(self.kb.get_data_for(i, "COUNTRY"))
             elif 'person' in ent_type_set:
                 context_score = context.person_percentile(i)
-            elif 'organisation' in ent_type_set or 'event'in ent_type_set:
-                context_score = context.org_event_percentile(i, ent_type)
+            elif 'organisation' in ent_type_set or 'event' in ent_type_set:
+                context_score = context.org_event_percentile(i, ent_type_set)
             else:
-                context_score = context.common_percentile(i, ent_type)
+                context_score = context.common_percentile(i, ent_type_set)
 
             if context_score > 0:
                 self.poorly_disambiguated = False
@@ -263,7 +254,7 @@ class Entity(ABC):
         assert isinstance(context, modContext.Context)
         
         if self.is_location_coreference():
-            module_logger.info("Jump behind pronoun coreference %r in place %r:\"...%s...\", because his right context contains verb BE.", self.source, self.start_offset, self.input_string_in_unicode[self.start_offset-10:self.end_offset+10], extra={"context": cur_inspect()})
+            module_logger.info("Jump behind pronoun coreference %r in place %r:\"...%s...\", because his right context contains verb BE.", self.source, self.start_offset, self.input_string[self.start_offset-10:self.end_offset+10], extra={"context": cur_inspect()})
             return
 
         pronoun_type = self.ner_vars.PRONOUNS[self.source.lower()]
@@ -347,36 +338,62 @@ class Entity(ABC):
 
 
     def __str__(self):
+        return self.to_string(display_uri=self.display_uri, display_score=self.display_score)
+    
+    def to_string(self, display_uri=False, display_score=False, debug=False):
         """ Converts an entity into an output format. """
-
-        result = str(self.start_offset) + "\t" + str(self.end_offset) + "\t"
+        
+        candidates_delim = ";" if not display_uri else "|"
+        
+        preferred_entity = self
+        if self.has_preferred_sense() and not (display_score and self.candidates):
+            preferred_sense = self.get_preferred_sense()
+            for e in self.parents:
+                if preferred_sense in e.senses:
+                    preferred_entity = e
+                    break
+        
+        result = str(preferred_entity.start_offset) + "\t" + str(preferred_entity.end_offset) + "\t"
+        
         if self.is_coreference:
+            if display_uri:
+                result += "uri_"
             result += "coref"
         elif self.is_name:
             result += "name"
+        elif display_uri:
+            result += "uri"
         else:
             result += "kb"
-        result += "\t" + self.input_string[self.start_offset:self.end_offset].replace('\n', ' ').replace('\r', '') + "\t"
-        if self.display_score and self.candidates:
+        result += "\t" + self.input_string[preferred_entity.start_offset:preferred_entity.end_offset].replace('\n', ' ').replace('\r', '') + "\t"
+        if display_score and self.candidates:
             candidates_str = []
             i = 0
             for cand in self.candidates:
-                candidates_str.append(str(cand))
+                cand_link = str(cand) if not display_uri else self.kb.get_uri(cand)
+                candidates_str.append(cand_link)
                 if i < len(self.score):
                     candidates_str[-1] += " " + str(self.score[i])
                 i += 1
-            result += ";".join(candidates_str)
+            result += candidates_delim.join(candidates_str)
         elif self.has_preferred_sense():
-            result += str(self.get_preferred_sense())
+            result += str(self.get_preferred_sense()) if not display_uri else self.kb.get_uri(self.get_preferred_sense())
         else:
             if self.is_coreference:
                 senses_list = sorted(self.partial_match_senses)
             else:
                 senses_list = sorted(self.senses)
             for i in senses_list:
-                result += str(i)
+                result += str(i) if not display_uri else self.kb.get_uri(i)
+                if debug and (not self.is_name or i > 0):
+                    wikipedia_url = self.kb.get_data_for(i, "WIKIPEDIA URL")
+                    result += " – ("
+                    result += f"type: '{self.kb.get_ent_type(i)}'"
+                    if not display_uri or display_uri and wikipedia_url != self.kb.get_uri(i):
+                        result += f", wikipedia_url: '{wikipedia_url}'"
+                    result += ")"
                 if i != senses_list[-1]:
-                    result += ';'
+                    result += candidates_delim
         return result
 
     def right_context(self, right):

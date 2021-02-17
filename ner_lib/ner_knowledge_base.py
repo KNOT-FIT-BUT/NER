@@ -25,30 +25,28 @@ limitations under the License.
 #
 # Description: Loads a shared knowledge base.
 
-import sys
-sys.path.append("..")
-
 import itertools
 import os
 import pickle
-import re
-import unicodedata
-
-from abc import ABC, abstractmethod
-from .kb_daemon import KbDaemon
-from .configs import *
 from importlib.machinery import SourceFileLoader
-from libs.utils import remove_accent
-from libs.entities.entity_loader import EntityLoader
+
+# <LOKÁLNÍ IMPORTY>
+from .kb_daemon import KbDaemon
+from .configs import DIRPATH_KB_DAEMON, INPUTS_DIR, KB_MULTIVALUE_DELIM
+from ..libs.utils import remove_accent
+from ..libs.entities.entity_loader import EntityLoader
+
 # Pro debugování:
-from .debug import print_dbg, print_dbg_en, cur_inspect
+from .debug import print_dbg_en
+# </LOKÁLNÍ IMPORTY>
 
 
-class KnowledgeBase(ABC):
+class KnowledgeBase():
 	def __init__(self, lang):
 		self.lang = lang
 		self.personUtils = EntityLoader.load(module = 'persons', lang = self.lang, initiate = 'Persons')
-    
+		self.path_kb = os.path.abspath(os.path.join(INPUTS_DIR, self.lang, "KB_all.tsv"))
+	
 	'''
 	Třída zapouzdřující KB.
 	'''
@@ -58,8 +56,8 @@ class KnowledgeBase(ABC):
 		Inicializace.
 		'''
 
-		KB_shm = SourceFileLoader('KB_shm', os.path.join(DIRPATH_KB_DAEMON,"KB_shm.py")).load_module()
-		self.kb_shm_name = kb_shm_name.encode()
+		KB_shm = SourceFileLoader('KB_shm', os.path.join(DIRPATH_KB_DAEMON, "KB_shm.py")).load_module()
+		self.kb_shm_name = kb_shm_name
 		self.kb_shm = KB_shm.KB_shm(self.kb_shm_name)
 		self.kb_daemon = None
 
@@ -73,22 +71,15 @@ class KnowledgeBase(ABC):
 
 		try:
 			if self.kb_shm_name == None:
-				if kb_daemon_run: # Zpětná kompatibilita: Pokud již poběží "/decipherKB-daemon_shm" se stejnou verzí KB, tak se na něj připojí.
-					self.kb_shm.start()
-					if not self.checkVersion():
-						self.end()
-						self.__init__("/decipherKB-%s-daemon_shm-%s" % (lang, self.kb_shm.getVersionFromSrc(PATH_KB)))
-						return self.start()
-				else:
-					self.__init__("/decipherKB-%s-daemon_shm-%s" % (lang, self.kb_shm.getVersionFromSrc(PATH_KB)))
-					return self.start()
+				self.init("/decipherKB-daemon_shm-%s" % (self.kb_shm.getVersionFromSrc(self.path_kb)))
+				return self.start()
 			else:
 				if kb_daemon_run:
 					self.kb_shm.start()
 					if not self.checkVersion():
-						raise RuntimeError("\"%s\" has different version compared to \"%s\"." % (self.kb_shm_name, PATH_KB))
+						raise RuntimeError("\"%s\" has different version compared to \"%s\"." % (self.kb_shm_name, self.path_kb))
 				else:
-					self.kb_daemon = KbDaemon(self.kb_shm_name)
+					self.kb_daemon = KbDaemon(self.path_kb, kb_shm_name=self.kb_shm_name)
 					self.kb_daemon.start()
 					self.kb_shm.start()
 
@@ -119,7 +110,7 @@ class KnowledgeBase(ABC):
 		'''
 		Zkontroluje, zda je ve sdílené paměti stejná verze KB jako v PATH_KB.
 		'''
-		return self.version() == self.kb_shm.getVersionFromSrc(PATH_KB)
+		return self.version() == self.kb_shm.getVersionFromSrc(self.path_kb)
 
 
 	def version(self):
@@ -134,15 +125,15 @@ class KnowledgeBase(ABC):
 		Dictionary asociates parts of person names with corresponding items of knowledge base.
 		'''
 
-		PATH_NAMEDICT = os.path.join(SCRIPT_DIR, "ner_namedict.pkl")
-		PATH_FRAGMENTS = os.path.join(SCRIPT_DIR, "ner_fragments.pkl")
+		PATH_NAMEDICT = os.path.join(INPUTS_DIR, self.lang, "ner_namedict.pkl")
+		#PATH_FRAGMENTS = os.path.join(INPUTS_DIR, self.lang, "ner_fragments.pkl")
 
 		self.name_dict = {}
 		self.fragments = set()
 
 		# Proto aby se nemusela znova procházet KB, vytvoří se soubor PATH_NAMEDICT.
 		# Namedict se bude načítat z něj pokud PATH_KB bude starší než PATH_NAMEDICT - tím dojde k urychlení.
-		if (os.access(PATH_NAMEDICT, os.F_OK)) and (os.stat(PATH_KB).st_mtime < os.stat(PATH_NAMEDICT).st_mtime and os.path.getsize(PATH_NAMEDICT)):
+		if (os.access(PATH_NAMEDICT, os.F_OK)) and (os.stat(self.path_kb).st_mtime < os.stat(PATH_NAMEDICT).st_mtime and os.path.getsize(PATH_NAMEDICT)):
 			with open(PATH_NAMEDICT, 'rb') as namedict_file:
 				version, self.name_dict, self.fragments = pickle.load(namedict_file)
 		else:
@@ -162,7 +153,7 @@ class KnowledgeBase(ABC):
 					whole_names.append(self.get_data_for(line, "NAME"))
 
 					# creates subnames
-					names = self.personUtils.get_normalized_subnames(whole_names, roles = self.get_data_for(line, "ROLE", separator = KB_MULTIVALUE_DELIM), separate_to_names = True)
+					names = self.personUtils.get_normalized_subnames(whole_names, roles = self.get_data_for(line, "ROLES", separator = KB_MULTIVALUE_DELIM), separate_to_names = True)
 
 					for name in names:
 						name = remove_accent(name).lower()
@@ -209,6 +200,9 @@ class KnowledgeBase(ABC):
 		'''
 
 		data = self.kb_shm.dataFor(line, col_name, col_name_type)
+		if data is None:
+			_, all_about_entity = self.get_complete_ent_pretty(line)
+			print_dbg_en(all_about_entity)
 		if separator:
 			data = data.split(separator) if data else []
 		return data
@@ -243,12 +237,14 @@ class KnowledgeBase(ABC):
 		Vrátí seznam sloupců na řádku \a line, tak jak je v KB.
 		'''
 
+		col = 1
 		result = []
 		column_data = self.get_data_at(line, col)
 
 		while column_data != None:
 			result.append(column_data)
 			column_data = self.get_data_at(line, col)
+			col += 1
 
 		return result
 
@@ -258,12 +254,14 @@ class KnowledgeBase(ABC):
 		Vrátí seznam hlaviček sloupců pro uspořádanou množinu typů \a ent_type_set.
 		'''
 
+		col = 1
 		result = []
 		column_head = self.get_head_for(ent_type_set, col)
 
 		while column_head != None:
 			result.append(column_head)
 			column_head = self.get_head_for(ent_type_set, col)
+			col += 1
 
 		return result
 
@@ -274,8 +272,8 @@ class KnowledgeBase(ABC):
 		'''
 
 		ent_type_set = self.get_ent_type(line)
-		column_head_list = get_complete_data(line)
-		column_data_list = get_complete_head(ent_type_set)
+		column_head_list = self.get_complete_head(ent_type_set)
+		column_data_list = self.get_complete_data(line)
 
 		column_repr_list = []
 		for column_head, column_data in itertools.izip_longest(column_head_list, column_data_list):
@@ -289,7 +287,7 @@ class KnowledgeBase(ABC):
 		Returns an type of an entity at the line of the knowledge base represent as an ordered set of type
 		"""
 
-		return str(self.kb_shm.dataType(line))
+		return self.kb_shm.dataType(line)
 
 
 	def get_dates(self, line):
@@ -311,12 +309,17 @@ class KnowledgeBase(ABC):
 			nation = self.get_data_for(line, "ALIASES", separator = KB_MULTIVALUE_DELIM)
 			# nation.extend(self.get_data_for(line, "ADJECTIVAL FORM").split(KB_MULTIVALUE_DELIM)) # NOT present in GKB
 			nation.append(self.get_data_for(line, "NAME"))
-			nation.append(self.get_data_for(line, "COUNTRY"))
+			nation.append(self.get_data_for(line, "DISAMBIGUATION NAME"))
+			nation.append(self.get_data_for(line, "SHORT NAME"))
+			nation.append(self.get_data_for(line, "COUNTRY NAME"))
 		elif "person" in ent_type_set:
 			nation = self.get_data_for(line, "NATIONALITIES", separator = KB_MULTIVALUE_DELIM)
 		nation = set([nat.lower() for nat in nation if nat != ""])
 		return nation
 
+	def get_uri(self, line):
+		result = self.get_data_for(line, "WIKIDATA URL") or self.get_data_for(line, "WIKIPEDIA URL") or self.get_data_for(line, "DBPEDIA URL")
+		return result
 
 	def get_score(self, line):
 		'''
@@ -332,7 +335,7 @@ class KnowledgeBase(ABC):
 			err_head = self.get_complete_head(err_type_set)
 			err_data = self.get_complete_data(line)
 			print_dbg_en("Line \"", line, "\" have non-integer type \"", type(result), "\" with content \"", result, "\"", delim="")
-			print_dbg_en("Dump head for type \"", err_type, "\" (cols=", len(err_head), "):\n\"\"\"\n", "\t".join(h.name for h in err_head), "\n\"\"\"", delim="")
+			print_dbg_en("Dump head for type \"", repr(err_type_set), "\" (cols=", len(err_head), "):\n\"\"\"\n", "\t".join(h.name for h in err_head), "\n\"\"\"", delim="")
 			print_dbg_en("Dump line \"", line, "\" (cols=", len(err_data), "):\n\"\"\"\n", "\t".join(err_data), "\n\"\"\"", delim="")
 			print_dbg_en("Version of connected KB (at \"", self.kb_shm_name, "\") is \"", self.version(), "\".", delim="")
 			raise

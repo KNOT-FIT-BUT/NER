@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+# <LOKÁLNÍ IMPORTY>
 from . import entity
+# </LOKÁLNÍ IMPORTY>
 
 class EntityRegister(object):
     """ A class containing the index of all disambiguated entities. """

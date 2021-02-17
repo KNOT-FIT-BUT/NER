@@ -25,14 +25,14 @@ limitations under the License.
 #
 
 import sys
-sys.path.append("..")
-
 import numpy
+
+# <LOKÁLNÍ IMPORTY>
 from . import entity as modEntity
 from . import ner_knowledge_base as base_ner_knowledge_base
 from .configs import KB_MULTIVALUE_DELIM
-from libs import dates
-
+from . import dates
+# </LOKÁLNÍ IMPORTY>
 
 class Context(object):
     """ Information about a context of a processed text. """
@@ -114,7 +114,7 @@ class Context(object):
                             if ent_type not in self.mentions[par]:
                                 self.mentions[par][ent_type] = {}
 
-                        if 'geo' in ent_type_set:
+                        if ent_type_set & {"geographical", "location"}:
                             # get location country name and aliases
                             name = ent.kb.get_data_for(ent.get_preferred_sense(), "NAME")
                             country = ent.kb.get_data_for(ent.get_preferred_sense(), "COUNTRY")
@@ -206,18 +206,19 @@ class Context(object):
         else:
             self.last_thing = entity
 
-    def mentioned_in_par(self, candidates, field):
+    def mentioned_in_par(self, candidates, ent_type_set):
         par_index = self.paragraphs[self.paragraph_index]
 
-        mentioned_in_par_score = 0
-        if field in self.mentions[par_index]:
-            for c in candidates:
-                if c in self.mentions[par_index][field]:
-                    mentioned_in_par_score =  self.mentions[par_index][field][c]
-                    break
-
-        if mentioned_in_par_score:
-            mentioned_in_par_score = mentioned_in_par_score * 100 / sum(self.mentions[par_index][field].values())
+        for ent_type in ent_type_set:
+            mentioned_in_par_score = 0
+            if ent_type in self.mentions[par_index]:
+                for c in candidates:
+                    if c in self.mentions[par_index][ent_type]:
+                        mentioned_in_par_score =  self.mentions[par_index][ent_type][c]
+                        break
+            
+            if mentioned_in_par_score:
+                mentioned_in_par_score = mentioned_in_par_score * 100 / sum(self.mentions[par_index][ent_type].values())
 
         return mentioned_in_par_score
 
@@ -268,7 +269,7 @@ class Context(object):
 
 
         person_name = [self.kb.get_data_for(candidate, "NAME")]
-        mentioned_in_par_score = self.mentioned_in_par(person_name, 'person')
+        mentioned_in_par_score = self.mentioned_in_par(person_name, {'person'})
 
         # summing up the scores
         result = numpy.average([people_nationality_score, people_date_score, people_profession_score, mentioned_in_par_score])
@@ -291,27 +292,28 @@ class Context(object):
         else:
             # computing and normalizing score for a given country
             return self.countries[self.paragraphs[self.paragraph_index]][country] * 100 / sum(self.countries[self.paragraphs[self.paragraph_index]].values())
-    def common_percentile(self, candidate, ent_type):
+    def common_percentile(self, candidate, ent_type_set):
         name = [self.kb.get_data_for(candidate, "NAME")]
-        mentioned_in_par_score = self.mentioned_in_par(name, ent_type)
+        mentioned_in_par_score = self.mentioned_in_par(name, ent_type_set)
 
         return mentioned_in_par_score
 
 
-    def org_event_percentile(self, candidate, ent_type):
+    def org_event_percentile(self, candidate, ent_type_set):
+        # FIXME: Proč se mixuje 'organisation' a 'event'?
         par_index = self.paragraphs[self.paragraph_index]
 
         name = [self.kb.get_data_for(candidate, "NAME")]
-        mentioned_in_par_score = self.mentioned_in_par(name, ent_type)
+        mentioned_in_par_score = self.mentioned_in_par(name, ent_type_set)
 
-        place = [self.kb.get_data_for(candidate, "LOCATION")]
-        place_score = self.mentioned_in_par(place, 'settlement')
+        place = self.kb.get_data_for(candidate, "LOCATIONS").split(KB_MULTIVALUE_DELIM)
+        place_score = self.mentioned_in_par(place, {'settlement'}) # FIXME: 'settlement' vidím poprvé, má to nějaký důvod?
 
         org_date_score = 0
-        if ent_type == "organisation":
+        if "organisation" in ent_type_set:
             org_dates = [self.kb.get_data_for(candidate, "FOUNDED"), self.kb.get_data_for(candidate, "CANCELLED")]
         else:
-            org_dates = [self.kb.get_data_for(candidate, "START"), self.kb.get_data_for(candidate, "END")]
+            org_dates = [self.kb.get_data_for(candidate, "START DATE"), self.kb.get_data_for(candidate, "END DATE")]
 
         for context_date in self.people_dates[par_index]:
             for org_date in org_dates:

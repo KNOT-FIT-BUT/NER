@@ -15,17 +15,14 @@ class Nationalities():
 			print("Nationality input data file for language \"{}\" not found or is not accessible.".format(self.lang), file = sys.stderr, flush = True)
 			sys.exit(errno.EIO)
 
-
 	def get_nationalities(self):
 		nationalities = []
-
+		
 		for nat in self.nationalities:
 			nationalities.append(nat)
 			nationalities.append(nat.lower())
-
+		
 		return nationalities
- 
 
 	def get_jurisdictions(self):
 		return self.get_nationalities()
-        

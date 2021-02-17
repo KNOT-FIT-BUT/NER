@@ -15,9 +15,9 @@ import collections
 
 import linecache, inspect
 
+# <LOKÁLNÍ IMPORTY>
 from . import marker as figa
-
-from multiprocessing import Pool
+# </LOKÁLNÍ IMPORTY>
 
 # ====== GLOBÁLNÍ KONSTANTY ======
 
@@ -26,7 +26,6 @@ from multiprocessing import Pool
 # ====== FUNKCE A TŘÍDY ======
 
 NamelistLine = collections.namedtuple("NamelistLine", "fragment kb_rows")
-
 
 def parseNamelistLine(raw_namelist_line):
     """
@@ -51,7 +50,6 @@ def parseNamelistLine(raw_namelist_line):
 
 FigaOutput = collections.namedtuple("FigaOutput", "kb_rows start_offset end_offset fragment flag")
 
-
 def parseFigaOutput(raw_figa_output):
     """
     Parsuje výstup z figy.
@@ -75,40 +73,8 @@ def parseFigaOutput(raw_figa_output):
             kb_rows, start_offset, end_offset, fragment, flag = line.split("\t")
             yield FigaOutput(set(map(int, kb_rows.split(";"))), int(start_offset)-1, int(end_offset), fragment, flag) # Figa má start_offset+1 (end_offset má dobře).
 
-
-def testFiga(i_line, parsed_name_line):
-    # Parsování výstupu z nástroje Figa
-    input_string = parsed_namelist_line.fragment
-    raw_figa_output = figa_handler.lookup_string(input_string)
-    parsed_figa_output = list(parseFigaOutput(raw_figa_output))
-    
-    # Porovnání řádku ze souboru "namelist" a výstupu z nástroje Figa
-    ok = True
-    if not (len(parsed_figa_output) == 1):
-        # * Pokud nemáme povolený overlap, měl by být výstup právě jeden
-        ok = False
-        error_str = linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-3).strip()
-    elif not (parsed_figa_output[0].start_offset == 0 and len(input_string) == parsed_figa_output[0].end_offset):
-        # * Vstupní fragment by měl odpovídat fragmentu z výstupu nástroje Figa (alespoň délkou)
-        ok = False
-        error_str = linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-3).strip()
-    elif not (parsed_figa_output[0].kb_rows == parsed_namelist_line.kb_rows):
-        # * Řádky KB by měli odpovídat
-        ok = False
-        error_str = linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-3).strip()
-    
-    if not ok:
-        print("=== err. on namelist line %s ===" % i_line)
-        print(error_str)
-        print("<<<<<<<<<")
-        print("NamelistLine(fragment='%s', kb_rows=%s)" % parsed_namelist_line)
-        print("---------")
-        for line in parsed_figa_output:
-            print("FigaOutput(kb_rows=%s, start_offset=%s, end_offset=%s, fragment='%s', flag='%s')" % line)
-        print(">>>>>>>>>")
-
-
 # ====== MAIN ======
+
 def argParse():
     """
     Zpracování parametrů příkazového řádku
@@ -128,12 +94,9 @@ def argParse():
         help = ("Cesta ke slovníku vygenerovaného ze souboru \"namelist\".")
     )
     
-    parser.add_argument("-m", default=2, type=int, help="počet procesů pro multiprocessing.Pool() na zpracovávání entit")
-    
     arguments = parser.parse_args()
     
     return arguments
-
 
 def main():
     """
@@ -147,27 +110,47 @@ def main():
     figa_handler = figa.marker()
     figa_handler.load_dict(arguments.figa_dict)
     
-    parsed_namelist_lines = []
-    i_lines = []
     # == Testovnání nástroje Figa pomocí souboru "namelist" ==
     with open(arguments.namelist) as fp:
         error_cnt = 0
         error_str = ""
-        line_cnt = 0
         for raw_namelist_line in fp:
-            line_cnt += 1
             # Parsování řádků ze souboru "namelist"
             if raw_namelist_line.rstrip("\n") != "":
-                parsed_namelist_lines.append(parseNamelistLine(raw_namelist_line))
-                i_lines.append(line_cnt)
+                parsed_namelist_line = parseNamelistLine(raw_namelist_line)
             else:
                 continue
-
-    pool = Pool(processes = arguments.m)
-    pool.starmap(testFiga, zip(parsed_namelist_lines, i_lines))
-    pool.close()
-    pool.join()
-
+            
+            # Parsování výstupu z nástroje Figa
+            input_string = parsed_namelist_line.fragment
+            raw_figa_output = figa_handler.lookup_string(input_string)
+            parsed_figa_output = list(parseFigaOutput(raw_figa_output))
+            
+            # Porovnání řádku ze souboru "namelist" a výstupu z nástroje Figa
+            ok = True
+            if not (len(parsed_figa_output) == 1):
+                # * Pokud nemáme povolený overlap, měl by být výstup právě jeden
+                ok = False
+                error_str = linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-3).strip()
+            elif not (parsed_figa_output[0].start_offset == 0 and len(input_string.decode("utf-8")) == parsed_figa_output[0].end_offset):
+                # * Vstupní fragment by měl odpovídat fragmentu z výstupu nástroje Figa (alespoň délkou)
+                ok = False
+                error_str = linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-3).strip()
+            elif not (parsed_figa_output[0].kb_rows == parsed_namelist_line.kb_rows):
+                # * Řádky KB by měli odpovídat
+                ok = False
+                error_str = linecache.getline(__file__, inspect.getlineno(inspect.currentframe())-3).strip()
+            
+            if not ok:
+                error_cnt += 1
+                print("=== err. %s ===" % error_cnt)
+                print(error_str)
+                print("<<<<<<<<<")
+                print("NamelistLine(fragment='%s', kb_rows=%s)" % parsed_namelist_line)
+                print("---------")
+                for line in parsed_figa_output:
+                    print("FigaOutput(kb_rows=%s, start_offset=%s, end_offset=%s, fragment='%s', flag='%s')" % line)
+                print(">>>>>>>>>")
 
 if __name__ == "__main__":
     main()

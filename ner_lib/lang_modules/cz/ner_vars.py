@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import sys
-sys.path.append('../..')
-
+# <LOKÁLNÍ IMPORTY>
 from ...ner_vars import NerVars as BaseNerVars
+# </LOKÁLNÍ IMPORTY>
 
 class NerVars(BaseNerVars):
     # pronouns along with their type they refer to
@@ -31,4 +30,4 @@ class NerVars(BaseNerVars):
 
     PROPER_NOUNS_PREPS = set()
 
-    VERBS = {" byl ", " byla ", " je "}
+    VERBS = {" byl ", " byla ", " je "} # <entity> <verb> <explanation of entity>

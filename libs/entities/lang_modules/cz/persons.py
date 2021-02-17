@@ -3,11 +3,7 @@
 #
 # Author: Tomáš Volf, ivolf[at]fit.vutbr.cz
 
-import sys
-sys.path.append('../..')
-
 from ...persons import Persons as BasePersons
-
 
 class Persons(BasePersons):
 	def get_FORBIDDEN_NAMES(self):

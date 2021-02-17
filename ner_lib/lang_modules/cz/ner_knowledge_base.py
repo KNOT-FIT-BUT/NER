@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import sys
-sys.path.append("../..") 
-
+# <LOKÁLNÍ IMPORTY>
 from ...ner_knowledge_base import KnowledgeBase as BaseKnowledgeBase
+# </LOKÁLNÍ IMPORTY>
 
 class KnowledgeBase(BaseKnowledgeBase):
 	def __init__(self, lang):

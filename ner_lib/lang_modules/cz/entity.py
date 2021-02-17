@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import sys
-sys.path.append('../..')
-
+# <LOKÁLNÍ IMPORTY>
 from ...entity import Entity as BaseEntity
-
-
+# </LOKÁLNÍ IMPORTY>
 
 class Entity(BaseEntity):
     def apply_lang_depended_sense_rules(self):

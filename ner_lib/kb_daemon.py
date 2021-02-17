@@ -7,28 +7,34 @@ import inspect
 import subprocess
 import tempfile
 import time
+import re
+import threading
 
-from .configs import *
+# <LOKÁLNÍ IMPORTY>
+from .configs import PATH_KB_DAEMON
+
 # Pro debugování:
-from .debug import print_dbg, print_dbg_en
+from .debug import print_dbg, cur_inspect
+# </LOKÁLNÍ IMPORTY>
 
 # # Timeouty v sekundách:
 Timeout_SharedKB_start = 300
 Timeout_process_exists = 10
 
 class KbDaemon(object):
-	def __init__(self, kb_shm_name=None):
+	def __init__(self, path_kb, kb_shm_name=None):
 		self.ps = None
 		self.stdout = tempfile.TemporaryFile()
 		self.stderr = tempfile.TemporaryFile()
 		self.exitcode = None
+		self.path_kb = path_kb
 		self.kb_shm_name = kb_shm_name
 
 	def start(self):
 		if self.kb_shm_name:
-			self.ps = subprocess.Popen([PATH_KB_DAEMON, "-s", self.kb_shm_name, PATH_KB], stdout=self.stdout, stderr=self.stderr)
+			self.ps = subprocess.Popen([PATH_KB_DAEMON, "-s", self.kb_shm_name, self.path_kb], stdout=self.stdout, stderr=self.stderr)
 		else:
-			self.ps = subprocess.Popen([PATH_KB_DAEMON, PATH_KB], stdout=self.stdout, stderr=self.stderr)
+			self.ps = subprocess.Popen([PATH_KB_DAEMON, self.path_kb], stdout=self.stdout, stderr=self.stderr)
 
 		output = ""
 		try:
