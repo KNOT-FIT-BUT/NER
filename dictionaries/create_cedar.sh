@@ -158,7 +158,7 @@ while [ "$1" != "" ]; do
             KB_GIVEN=true
             ;;
         --clean-cached)
-            CLEAN_CACHED=false
+            CLEAN_CACHED=true
             ;;
         -p | --processes)    # -n does not work
             if [ "$PARAM" = "-p" ]; then
