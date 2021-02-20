@@ -14,7 +14,7 @@ usage()
   echo ""
   echo -e "  -h --help"
   echo -e "  --lang=${DEFAULT_LANG}    Create dictionaries / automatas for given langueage."
-  echo -e "  -u [<login>]         Upload (deploy) KB to webstorage via given login (login \"${USER}\" is used by default)."
+  echo -e "  -u [<login>]         Upload (deploy) dictionaries (automata) to webstorage via given login (login \"${USER}\" is used by default)."
   echo -e "  -c --clean-cached    Do not use previously created cached files (usable for same version of KB only)."
   echo -e "  --dev                Development mode (upload to separate space to prevent forming a new production version of automata)"
   echo -e "  --log                Log to create_dicts.sh.stdout, create_dicts.sh.stderr and create_dicts.sh.stdmix"
