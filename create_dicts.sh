@@ -13,7 +13,7 @@ DICTS_ARGS=()
 
 usage()
 {
-  echo "Usage: create_dicts.sh --lang=<language> [-u [<login>]] [-c | --clean-cached]"
+  echo "Usage: create_dicts.sh --lang=<language> [-u [<login>]] [-c | --clean-cached] [-k <KB path>] [--dev] [--log]"
   echo ""
   echo -e "  -h --help"
   echo -e "  --lang=${DEFAULT_LANG}    Create dictionaries / automatas for given langueage."
