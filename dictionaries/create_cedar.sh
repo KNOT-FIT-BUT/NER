@@ -261,6 +261,7 @@ DICTS_VERSION=`getGitBasedVersion ".."`
 echo "DICTS version: ${DICTS_VERSION}" | tee -a "${VERSION_FILE}"
 echo "---------------------------------"
 
+
 #=====================================================================
 F_ENTITIES_WITH_TYPEFLAGS="entities_with_typeflags_${KB_VERSION}.tsv"
 F_ENTITIES_TAGGED_INFLECTIONS="entities_tagged_inflections_${KB_VERSION}.tsv"
@@ -275,7 +276,7 @@ F_TMP_ENTITIES_WITH_TYPEFLAGS="${DIR_OUTPUTS}/${F_TMP_ENTITIES_WITH_TYPEFLAGS}"
 F_TMP_ENTITIES_TAGGED_INFLECTIONS="${DIR_OUTPUTS}/${F_TMP_ENTITIES_TAGGED_INFLECTIONS}"
   
 # Skip generating some files if exist, because they are very time consumed
-if test "${CLEAN_CACHED}" = true || ! test -f "${F_ENTITIES_WITH_TYPEFLAGS}"; then
+if test "${CLEAN_CACHED}" = "true" || ! test -f "${F_ENTITIES_WITH_TYPEFLAGS}"; then
   # Be careful > "Ά" or "Α" in "sed" is foreign char not "A" from Latin(-base) chars.
   python3 get_entities_with_typeflags.py -k "$KB" --lang ${LANG} | awk -F"\t" 'NF>2{key = $1 "\t" $2 "\t" $3; a[key] = a[key] (a[key] ? " " : "") $4;};END{for(i in a) print i "\t" a[i]}' > "${F_TMP_ENTITIES_WITH_TYPEFLAGS}"
   mv "${F_TMP_ENTITIES_WITH_TYPEFLAGS}" "${F_ENTITIES_WITH_TYPEFLAGS}" 2>/dev/null
