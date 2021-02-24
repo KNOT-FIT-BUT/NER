@@ -137,13 +137,13 @@ else
   KB_ETAG_REMOTE=`wget -qS --spider ${KB_SRC} 2>&1 | grep -P "(?s)^\s+ETag" | grep -oP "(?<=\").*(?=\")"`
   KB_ETAG_LOCAL=`cat "${KB_ETAG_FILE}" 2>/dev/null`
 
-  if ! $_ETAG_REMOTE
+  if test -z "${KB_ETAG_REMOTE}"
   then
     >&2 echo "ERROR: Network connection problem or unavailable CPK storage."
     exit 11
   fi
 
-  if test "$KB_ETAG_REMOTE" != "$KB_ETAG_LOCAL" || ! test -s "${KB_FILE}"
+  if test "${KB_ETAG_REMOTE}" != "${KB_ETAG_LOCAL}" || ! test -s "${KB_FILE}"
   then
     echo "DOWNLOADING new version of KB..."
     wget "${KB_SRC}" -O "${KB_FILE}" 2>/dev/null
@@ -170,7 +170,7 @@ echo "LAUNCHING dictionaries creation"
 
 ${DICTS_BASEDIR}/create_cedar.sh -a --lang=${LANG} -k "${KB_FILE}" "${DICTS_ARGS[@]}"
 
-if $DEPLOY
+if test "${DEPLOY}" == "true"
 then
   ${DICTS_BASEDIR}/deploy.sh -u ${DEPLOY_USER} "${DEPLOY_ARGS[@]}"
 fi
