@@ -246,20 +246,28 @@ make -C ..
 
 mkdir -p "${DIR_OUTPUTS}"
 
-VERSION_FILE="${DIR_OUTPUTS}/VERSIONS"
+VERSION_FILE="${DIR_OUTPUTS}/VERSIONS.json"
 KB_VERSION=`head -n 1 "${KB}" | sed -E 's/^VERSION=//' | tr -d '\n\r '`
 echo "---------------------------------"
-echo "KB version: ${KB_VERSION}" | tee "${VERSION_FILE}"
+echo "KB version: ${KB_VERSION}"
 
 if test "${LANG}" == "cs"
 then
   NAMEGEN_VERSION=`getGitBasedVersion "./lang_modules/cs/czechnames/"`
-  echo "CZECH NAMEGEN version: ${NAMEGEN_VERSION}" | tee -a "${VERSION_FILE}"
+  echo "CZECH NAMEGEN version: ${NAMEGEN_VERSION}"
 fi
 
 DICTS_VERSION=`getGitBasedVersion ".."`
-echo "DICTS version: ${DICTS_VERSION}" | tee -a "${VERSION_FILE}"
+echo "DICTS version: ${DICTS_VERSION}"
 echo "---------------------------------"
+
+cat > "${VERSION_FILE}" << EOF
+{
+  "KB": "${KB_VERSION}",
+  "CZECH NAMEGEN": "${NAMEGEN_VERSION}",
+  "DICTS": "${DICTS_VERSION}"
+}
+EOF
 
 
 #=====================================================================

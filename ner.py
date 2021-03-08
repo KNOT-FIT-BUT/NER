@@ -32,9 +32,14 @@ import sys
 
 import argparse
 import collections
+import json
 import os
 import re
+import requests
+import tarfile
 import uuid
+
+from urllib.request import urlopen
 
 from name_recognizer import name_recognizer as name_recognizer
 from figa import marker as figa
@@ -59,12 +64,81 @@ from libs.debug import print_dbg_en
 
 module_logger = get_ner_logger()
 
-# a list of frequent titles, degrees etc. (Mayor, King, Sir, ...)
-F_TITLES = os.path.abspath(os.path.join(configs.SCRIPT_DIR, "/ner/inputs/freq_terms_filtred.all"))
-LIST_OF_TITLES = [line.strip() for line in open(F_TITLES)] if os.path.exists(F_TITLES) else []
-
 lng = None
 word_types = None
+# a list of frequent titles, degrees etc. (Mayor, King, Sir, ...)
+list_titles = []
+arguments = None
+
+DISTRIBUTION_BASE = 'http://knot.fit.vutbr.cz/NAKI_CPK/NER_ML_inputs/'
+
+
+def get_dicts_basepath(lng: str) -> str:
+    return f'{DISTRIBUTION_BASE}/Automata/ATM_{lng}/new/'
+
+
+def get_kb_basepath(lng: str) -> str:
+    return f'{DISTRIBUTION_BASE}/KB/KB_{lng}/'
+
+
+def check_etag_and_size(remote_path: str, etag_local_path: str, target_local_path: str) -> bool:
+    need_download = True
+
+    resp = requests.head(remote_path)
+    size_remote = int(resp.headers.get('Content-Length'))
+    etag_remote = resp.headers.get('ETag')
+
+    try:
+        with open(etag_local_path, 'r') as f:
+            etag_local = f.read()
+            if etag_local == etag_remote:
+                need_download = False
+        if need_download and os.path.getsize(target_local_path) == size_remote:
+            need_download = False
+    except FileNotFoundError as err:
+        pass
+
+    return need_download
+
+
+def download_kb_or_dict_only(remote_path: str, etag_local_path: str, target_local_path: str) -> None:
+    DATA_CHUNK = 4096
+    downloaded_size = 0;
+
+    print(f"  * downloading \"{os.path.basename(remote_path)}\" as \"{os.path.basename(target_local_path)}\" ...", file = sys.stderr)
+    with urlopen(remote_path) as url:
+        etag_remote = dict(url.getheaders())['ETag']
+        size_remote_mb = int(dict(url.getheaders())['Content-Length']) / 1024.0 / 1024
+        with open(target_local_path, 'wb') as fout:
+            while True:
+                data = url.read(DATA_CHUNK)
+                if data:
+                    downloaded_size += len(data) / 1024.0 / 1024
+                    print(f"    * downloaded: {downloaded_size:.2f} / {size_remote_mb:.2f} MB...", file = sys.stderr, end = '\r')
+                    fout.write(data)
+                else:
+                    print(f"    * download completed ...                          ", file = sys.stderr)
+                    with open(etag_local_path, 'w') as fetag:
+                        fetag.write(etag_remote)
+                    break
+
+
+def download_with_check(remote_path: str, etag_local_path: str, target_local_path: str) -> None:
+    print(f"  * checking \"{os.path.basename(target_local_path)}\" ...", file = sys.stderr)
+    need_download = check_etag_and_size(remote_path, etag_local_path, target_local_path)
+
+    if need_download:
+        download_kb_or_dict_only(remote_path, etag_local_path, target_local_path)
+    else:
+        print(f"  * already downloaded file \"{os.path.basename(target_local_path)}\" - using local one ...", file = sys.stderr)
+
+
+def get_dicts_remote_version(lng: str) -> dict:
+    resp = requests.get(f'{get_dicts_basepath(lng)}/VERSIONS.json')
+    if resp.status_code != 200:
+        raise Exception('Error occurs while downloading VERSION file of dictionaries.')
+    return resp.json()
+
 
 def offsets_of_paragraphs(input_string):
     """
@@ -94,7 +168,7 @@ def find_proper_nouns(input_string):
     proper_noun_regex = re.compile(r"(?<!\. |\? |! |: |\s{2})[A-Z][A-Za-z\'\-]*( [A-Z][A-Za-z\'\-]*" + re_proper_noun_preps + r")* [A-Z][A-Za-z\'\-]*") # !!!
     for pn in re.finditer(proper_noun_regex, input_string):
         fields = pn.group(0).split()
-        if fields[0] not in LIST_OF_TITLES and pn.start() != 0:
+        if fields[0] not in list_titles and pn.start() != 0:
             result.append((pn.start(), pn.end()))
     return result
 
@@ -347,6 +421,21 @@ def parseFigaOutput(figa_output):
 seek_names = None
 output = None
 
+
+def get_dict_path(lowercase: bool) -> str:
+    lower = ""
+    if lowercase:
+        lower = "-lower"
+
+    path_to_figa_dict = os.path.abspath(os.path.join(arguments.indir, f"automata{lower}"))
+    if os.path.isfile(path_to_figa_dict + ".dct"):
+        path_to_figa_dict += ".dct" # DARTS
+    else:
+        path_to_figa_dict += ".ct" # CEDAR
+
+    return path_to_figa_dict
+
+
 def get_entities_from_figa(kb, input_string, lowercase, global_senses, register, print_score):
     """ Returns the list of Entity objects from figa. """ # TODO: Možná by nebylo od věci toto zapouzdřit do třídy jako v "get_entities.py".
     assert isinstance(kb, base_ner_knowledge_base.KnowledgeBase)
@@ -363,16 +452,7 @@ def get_entities_from_figa(kb, input_string, lowercase, global_senses, register,
 
     if not seek_names:
         seek_names = figa.marker()
-
-        lower = ""
-        if lowercase:
-            lower = "-lower"
-
-        path_to_figa_dict = os.path.dirname(os.path.realpath(__file__)) + "/ner/inputs/automata" + lower
-        if os.path.isfile(path_to_figa_dict + ".dct"):
-            path_to_figa_dict += ".dct" # DARTS
-        else:
-            path_to_figa_dict += ".ct" # CEDAR
+        path_to_figa_dict = get_dict_path(lowercase)
         if not seek_names.load_dict(path_to_figa_dict):
             raise RuntimeError('Could not load dictionary (file "{}" does not exist or permission denied).'.format(path_to_figa_dict))
 
@@ -628,7 +708,9 @@ def recognize(kb, input_string, print_all=False, print_result=True, print_score=
 
 
 def main():
+    global arguments
     global lng
+    global list_titles
     global word_types
     
     # argument parsing
@@ -636,17 +718,19 @@ def main():
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-a', '--all', action='store_true', default=False, dest='all', help='Prints all entities without disambiguation.')
     group.add_argument('-s', '--score', action='store_true', default=False, dest='score', help='Prints all possible senses with respective score values.')
-    parser.add_argument('-q', '--lang', default = 'en', help='Language of recognition / disambiguation.')
+    parser.add_argument('-q', '--lang', default = 'cs', help='Language of recognition / disambiguation (default: %(default)s).')
     parser.add_argument('-d', '--daemon-mode', action='store_true', default=False, help='Runs ner.py in daemon mode.')
     parser.add_argument('-f', '--file',  help='Uses a given file as as an input.')
     parser.add_argument('-r', '--remove-accent', action='store_true', default=False, help="Removes accent in input.")
     parser.add_argument('-l', '--lowercase', action='store_true', default=False, help="Changes all characters in input to the lowercase characters.")
     parser.add_argument('-n', '--names', action='store_true', default=False, help="Recognizes and prints all names with start and end offsets.")
+#    parser.add_argument('-I', '--indir', type = str, default=os.path.join(os.getcwd(), 'ner/inputs'), help="Input directory, where automata/dictionaries and other input files are stored (default: %(default)s).")
+    parser.add_argument('--update', action="store_true", help="Check for new version of input files and update to a new one, if any.")
     parser.add_argument("--own_kb_daemon", action="store_true", dest="own_kb_daemon", help=("Run own KB daemon although another already running."))
     parser.add_argument("--debug", action="store_true", help="Enable debugging reports.")
 
     arguments = parser.parse_args()
-    
+
     arguments.lang = arguments.lang.lower()
     if arguments.lang in configs.LANGS_MAP:
         arguments.lang = configs.LANGS_MAP[arguments.lang]
@@ -658,13 +742,72 @@ def main():
             lng = next(iter(configs.LANGS_ALLOWED))
         else:
             raise Exception(f'Please select one of supported language ({", ".join(configs.LANGS_ALLOWED)}) by parameter "--lang".')
-    
+
     if not debug.DEBUG_EN and arguments.debug:
         debug.DEBUG_EN = True
-        
-    
+
+    need_update = False
+    arguments.indir = os.path.join(os.getcwd(), 'ner/inputs')
+
+    fpath_version = os.path.join(arguments.indir, "VERSIONS.json")
+
+    if not os.path.isdir(arguments.indir):
+        os.makedirs(arguments.indir)
+        need_update = True
+    else:
+        if not os.path.isfile(fpath_version):
+            need_update = True
+        else:
+            dict_path = get_dict_path(arguments.lowercase)
+            if not os.path.isfile(dict_path):
+                need_update = True
+
+    version_remote = {}
+    version_local = {}
+    if not need_update and arguments.update:
+        with open(fpath_version, 'r') as f:
+            version_local = json.load(f)
+        version_remote = get_dicts_remote_version(lng)
+        if version_remote.get('KB') > version_local.get('KB') or version_remote.get('DICTS') != version_remote.get('DICTS') or version_remote.get('CZECH NAMEGEN') != version_local.get('CZECH NAMEGEN'):
+            need_update = True
+
+    if need_update:
+        if not version_remote:
+            version_remote = get_dicts_remote_version(lng)
+        KB_version = version_remote.get('KB')
+
+        print(f"Updating dicts from version \"{version_local.get('KB') if version_local.get('KB') else 'UNKNOWN'}\" to version \"{version_remote.get('KB')}\"...", file = sys.stderr)
+
+        tgz_fname = f'ATM_{KB_version}.tar.gz'
+        tgz_local_path = os.path.join(arguments.indir, tgz_fname)
+        tgz_etag_path = os.path.join(arguments.indir, f'.{tgz_fname}.etag')
+        tgz_remote_path = f'{get_dicts_basepath(lng)}/ATM_{KB_version}.tar.gz'
+
+        download_with_check(tgz_remote_path, tgz_etag_path, tgz_local_path)
+
+        print(f"  * extracting \"{tgz_fname}\" ...", file = sys.stderr)
+        tgz = tarfile.open(tgz_local_path, 'r:gz')
+        tgz.extractall(arguments.indir)
+        tgz.close()
+
+    # KB check and download - check if exists appropriate version of KB, over which dicts were created; othervise download it
+    print(f"Checking KB for the relevant required version \"{version_remote.get('KB')}\"...", file = sys.stderr)
+    with open(fpath_version, 'r') as f:
+        version_local = json.load(f)
+        KB_version = version_local.get('KB')
+        kb_fname = f'KB.tsv'
+        kb_local_path = os.path.join(arguments.indir, kb_fname)
+        kb_etag_path = os.path.join(arguments.indir, f'.{kb_fname}.etag')
+        kb_remote_path = f'{get_kb_basepath(lng)}/KB_{KB_version}/KB.tsv'
+
+        download_with_check(kb_remote_path, kb_etag_path, kb_local_path)
+
+    # a list of frequent titles, degrees etc. (Mayor, King, Sir, ...)
+    f_titles = os.path.abspath(os.path.join(arguments.indir, "freq_terms_filtred.all"))
+    list_titles = [line.strip() for line in open(f_titles)] if os.path.exists(f_titles) else []
+
     word_types = LibLoader.load('word_types', lng, 'WordTypes')
-    
+
     # allowed tokens for daemon mode
     tokens = set(["NER_NEW_FILE", "NER_END", "NER_NEW_FILE_ALL", "NER_END_ALL", "NER_NEW_FILE_SCORE", "NER_END_SCORE", "NER_NEW_FILE_NAMES", "NER_END_NAMES"])
 

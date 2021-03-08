@@ -7,7 +7,7 @@ usage()
   echo -e "\t-h --help              Show this message and exit"
   echo -e "\t--lang=<language>      Select language version to work with"
   echo -e "\t-u [<login=${USER}>]   Upload (deploy) automata to webstorage via given login (default current user)"
-  echo -e "\t--dev                  Development mode (upload to separate space to prevent forming a new production version of automata)"
+  echo -e "\t--dev                  Development mode (upload to separate space to prevent forming a new production version of automata))"
   echo ""
 }
 
@@ -79,7 +79,7 @@ then
     exit 3
   fi
 
-  DEPLOY_VERSION=`head -n 1 VERSIONS | sed 's/KB version:\s*//' |  tr -d '\n\r '`
+  DEPLOY_VERSION=`cat VERSIONS.json | grep -Po '"KB":\s*"[^"]*"' | sed -E "s/\"KB\":\s*\"([^\"]+)\"/\1/" | tr -d '\n\r '`
   DEPLOY_CONNECTION="${DEPLOY_USER}@minerva3.fit.vutbr.cz"
   DEPLOY_BASENAME="ATM_${DEPLOY_VERSION}"
   DEPLOY_FOLDER_BASE="/mnt/knot/www/NAKI_CPK/${DEPLOY_DEV_SUBDIR}/NER_ML_inputs/Automata/ATM_${LANG}/${DEPLOY_BASENAME}"
@@ -96,7 +96,7 @@ then
   cd deploy/tmp
   
   mv *.dct ../automata/
-  mv VERSIONS ../automata/
+  mv VERSIONS.json ../automata/
   mv * ../debug_files/
   
   cd ..
@@ -104,9 +104,9 @@ then
   DEPLOY_FILE_AUTOMATA="${DEPLOY_BASENAME}.tar.gz"
   DEPLOY_FILE_DEBUG_FILES="${DEPLOY_BASENAME}-debug_files.tar.gz"
   echo "Packing automata files to ${DEPLOY_FILE_AUTOMATA}"
-  tar -cvf "${DEPLOY_FILE_AUTOMATA}" -C automata  . 2>&1 | sed 's/^/  * /'
+  tar -czvf "${DEPLOY_FILE_AUTOMATA}" -C automata . 2>&1 | sed 's/^/  * /'
   echo "Packing automata debug files to ${DEPLOY_FILE_DEBUG_FILES}"
-  tar -cvf "${DEPLOY_FILE_DEBUG_FILES}" debug_files 2>&1 | sed 's/^/  * /'
+  tar -czvf "${DEPLOY_FILE_DEBUG_FILES}" debug_files 2>&1 | sed 's/^/  * /'
   
   echo "Creating new folder: ${DEPLOY_FOLDER_BASE}"
   ssh "${DEPLOY_CONNECTION}" "mkdir -p \"${DEPLOY_FOLDER_BASE}\""
