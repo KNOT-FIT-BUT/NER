@@ -1,7 +1,7 @@
 #!/bin/bash
 
-DICTS_BASEDIR="./dictionaries"
-DIR_KB="${DICTS_BASEDIR}/inputs"
+ATM_BASEDIR="./automata"
+DIR_KB="${ATM_BASEDIR}/inputs"
 KB_ETAG_FILE=.KB.etag
 
 DEFAULT_LANG=cs
@@ -9,19 +9,19 @@ LANG=
 LOG=false
 
 DEPLOY_ARGS=()
-DICTS_ARGS=()
+ATM_ARGS=()
 
 usage()
 {
-  echo "Usage: ./create_dicts.sh --lang=<language> [-u [<login>] [--dev]] [-c | --clean-cached] [-k <KB path>] [--log]"
+  echo "Usage: ./create_automata.sh --lang=<language> [-u [<login>]] [-c | --clean-cached] [-k <KB path>] [--dev] [--log]"
   echo ""
   echo -e "  -h --help"
-  echo -e "  --lang=${DEFAULT_LANG}    Create dictionaries / automatas for given langueage."
+  echo -e "  --lang=${DEFAULT_LANG}    Create automata for given langueage."
   echo -e "  -u [<login>]         Upload (deploy) automata to webstorage via given login (login \"${USER}\" is used by default)."
   echo -e "  -c --clean-cached    Do not use previously created cached files (usable for same version of KB only)."
   echo -e "  -k <KB path>         Local KB version (do not download it from distribuition storage)"
   echo -e "  --dev                Development mode (upload to separate space to prevent forming a new production version of automata)"
-  echo -e "  --log                Log to create_dicts.sh.stdout, create_dicts.sh.stderr and create_dicts.sh.stdmix"
+  echo -e "  --log                Log to create_automata.sh.stdout, create_automata.sh.stderr and create_automata.sh.stdmix"
   echo ""
 }
 
@@ -90,13 +90,13 @@ fi
 
 
 if $LOG; then
-  rm -f create_dicts.sh.fifo.stdout create_dicts.sh.fifo.stderr create_dicts.sh.fifo.stdmix
-  mkfifo create_dicts.sh.fifo.stdout create_dicts.sh.fifo.stderr create_dicts.sh.fifo.stdmix
+  rm -f create_automata.sh.fifo.stdout create_automata.sh.fifo.stderr create_automata.sh.fifo.stdmix
+  mkfifo create_automata.sh.fifo.stdout create_automata.sh.fifo.stderr create_automata.sh.fifo.stdmix
 
-  cat create_dicts.sh.fifo.stdout | tee create_dicts.sh.stdout > create_dicts.sh.fifo.stdmix &
-  cat create_dicts.sh.fifo.stderr | tee create_dicts.sh.stderr > create_dicts.sh.fifo.stdmix &
-  cat create_dicts.sh.fifo.stdmix > create_dicts.sh.stdmix &
-  exec > create_dicts.sh.fifo.stdout 2> create_dicts.sh.fifo.stderr
+  cat create_automata.sh.fifo.stdout | tee create_automata.sh.stdout > create_automata.sh.fifo.stdmix &
+  cat create_automata.sh.fifo.stderr | tee create_automata.sh.stderr > create_automata.sh.fifo.stdmix &
+  cat create_automata.sh.fifo.stdmix > create_automata.sh.stdmix &
+  exec > create_automata.sh.fifo.stdout 2> create_automata.sh.fifo.stderr
 fi
 
 DIR_LAUNCHED=$PWD
@@ -104,9 +104,9 @@ DIR_WORKING=`dirname $(readlink -f "${0}")`
 
 cd "${DIR_WORKING}"
 
-if test "${DICTS_BASEDIR::1}" != "/"
+if test "${ATM_BASEDIR::1}" != "/"
 then
-  DICTS_BASEDIR="${DIR_WORKING}/${DICTS_BASEDIR}"
+  ATM_BASEDIR="${DIR_WORKING}/${ATM_BASEDIR}"
 fi
 
 if test "${KB_FILE}" != ""
@@ -163,16 +163,16 @@ fi
 
 if test "${CLEAN_CACHED}" == "true"
 then
-  DICTS_ARGS+=("--clean-cached")
+  ATM_ARGS+=("--clean-cached")
 fi
 
-echo "LAUNCHING dictionaries creation"
+echo "LAUNCHING automata creation"
 
-${DICTS_BASEDIR}/create_cedar.sh -a --lang=${LANG} -k "${KB_FILE}" "${DICTS_ARGS[@]}"
+${ATM_BASEDIR}/create_cedar.sh -a --lang=${LANG} -k "${KB_FILE}" "${ATM_ARGS[@]}"
 
 if test "${DEPLOY}" == "true"
 then
-  ${DICTS_BASEDIR}/deploy.sh -u ${DEPLOY_USER} "${DEPLOY_ARGS[@]}"
+  ${ATM_BASEDIR}/deploy.sh -u ${DEPLOY_USER} "${DEPLOY_ARGS[@]}"
 fi
 
 cd "${DIR_LAUNCHED}"

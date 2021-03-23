@@ -1,3 +1,7 @@
 [submodule "SharedKB"]
 	path = SharedKB
 	url = https://github.com/KNOT-FIT-BUT/SharedKB.git
+[submodule "automata/lang_modules/cs/czechnames"]
+	path = automata/lang_modules/cs/czechnames
+	url = https://github.com/KNOT-FIT-BUT/namegen.git
+	branch = devel

@@ -73,7 +73,7 @@ arguments = None
 DISTRIBUTION_BASE = 'http://knot.fit.vutbr.cz/NAKI_CPK/NER_ML_inputs/'
 
 
-def get_dicts_basepath(lng: str) -> str:
+def get_atm_basepath(lng: str) -> str:
     return f'{DISTRIBUTION_BASE}/Automata/ATM_{lng}/new/'
 
 
@@ -101,7 +101,7 @@ def check_etag_and_size(remote_path: str, etag_local_path: str, target_local_pat
     return need_download
 
 
-def download_kb_or_dict_only(remote_path: str, etag_local_path: str, target_local_path: str) -> None:
+def download_kb_or_atm_only(remote_path: str, etag_local_path: str, target_local_path: str) -> None:
     DATA_CHUNK = 4096
     downloaded_size = 0;
 
@@ -128,15 +128,15 @@ def download_with_check(remote_path: str, etag_local_path: str, target_local_pat
     need_download = check_etag_and_size(remote_path, etag_local_path, target_local_path)
 
     if need_download:
-        download_kb_or_dict_only(remote_path, etag_local_path, target_local_path)
+        download_kb_or_atm_only(remote_path, etag_local_path, target_local_path)
     else:
         print(f"  * already downloaded file \"{os.path.basename(target_local_path)}\" - using local one ...", file = sys.stderr)
 
 
-def get_dicts_remote_version(lng: str) -> dict:
-    resp = requests.get(f'{get_dicts_basepath(lng)}/VERSIONS.json')
+def get_atm_remote_version(lng: str) -> dict:
+    resp = requests.get(f'{get_atm_basepath(lng)}/VERSIONS.json')
     if resp.status_code != 200:
-        raise Exception('Error occurs while downloading VERSION file of dictionaries.')
+        raise Exception('Error occurs while downloading VERSION file of automata.')
     return resp.json()
 
 
@@ -422,18 +422,18 @@ seek_names = None
 output = None
 
 
-def get_dict_path(lowercase: bool) -> str:
+def get_atm_path(lowercase: bool) -> str:
     lower = ""
     if lowercase:
         lower = "-lower"
 
-    path_to_figa_dict = os.path.abspath(os.path.join(arguments.indir, f"automata{lower}"))
-    if os.path.isfile(path_to_figa_dict + ".dct"):
-        path_to_figa_dict += ".dct" # DARTS
+    path_to_figa_atm = os.path.abspath(os.path.join(arguments.indir, f"automata{lower}"))
+    if os.path.isfile(path_to_figa_atm + ".dct"):
+        path_to_figa_atm += ".dct" # DARTS
     else:
-        path_to_figa_dict += ".ct" # CEDAR
+        path_to_figa_atm += ".ct" # CEDAR
 
-    return path_to_figa_dict
+    return path_to_figa_atm
 
 
 def get_entities_from_figa(kb, input_string, lowercase, global_senses, register, print_score):
@@ -452,9 +452,9 @@ def get_entities_from_figa(kb, input_string, lowercase, global_senses, register,
 
     if not seek_names:
         seek_names = figa.marker()
-        path_to_figa_dict = get_dict_path(lowercase)
-        if not seek_names.load_dict(path_to_figa_dict):
-            raise RuntimeError('Could not load dictionary (file "{}" does not exist or permission denied).'.format(path_to_figa_dict))
+        path_to_figa_atm = get_atm_path(lowercase)
+        if not seek_names.load_dict(path_to_figa_atm):
+            raise RuntimeError('Could not load automata (file "{}" does not exist or permission denied).'.format(path_to_figa_atm))
 
     # getting data from figa
     if lowercase:
@@ -724,7 +724,7 @@ def main():
     parser.add_argument('-r', '--remove-accent', action='store_true', default=False, help="Removes accent in input.")
     parser.add_argument('-l', '--lowercase', action='store_true', default=False, help="Changes all characters in input to the lowercase characters.")
     parser.add_argument('-n', '--names', action='store_true', default=False, help="Recognizes and prints all names with start and end offsets.")
-#    parser.add_argument('-I', '--indir', type = str, default=os.path.join(os.getcwd(), 'ner/inputs'), help="Input directory, where automata/dictionaries and other input files are stored (default: %(default)s).")
+#    parser.add_argument('-I', '--indir', type = str, default=os.path.join(os.getcwd(), 'ner/inputs'), help="Input directory, where automata and other input files are stored (default: %(default)s).")
     parser.add_argument('--update', action="store_true", help="Check for new version of input files and update to a new one, if any.")
     parser.add_argument("--own_kb_daemon", action="store_true", dest="own_kb_daemon", help=("Run own KB daemon although another already running."))
     parser.add_argument("--debug", action="store_true", help="Enable debugging reports.")
@@ -758,8 +758,8 @@ def main():
         if not os.path.isfile(fpath_version):
             need_update = True
         else:
-            dict_path = get_dict_path(arguments.lowercase)
-            if not os.path.isfile(dict_path):
+            atm_path = get_atm_path(arguments.lowercase)
+            if not os.path.isfile(atm_path):
                 need_update = True
 
     version_remote = {}
@@ -767,21 +767,21 @@ def main():
     if not need_update and arguments.update:
         with open(fpath_version, 'r') as f:
             version_local = json.load(f)
-        version_remote = get_dicts_remote_version(lng)
-        if version_remote.get('KB') > version_local.get('KB') or version_remote.get('DICTS') != version_remote.get('DICTS') or version_remote.get('CZECH NAMEGEN') != version_local.get('CZECH NAMEGEN'):
+        version_remote = get_atm_remote_version(lng)
+        if version_remote.get('KB') > version_local.get('KB') or version_remote.get('AUTOMATA') != version_remote.get('AUTOMATA') or version_remote.get('CZECH NAMEGEN') != version_local.get('CZECH NAMEGEN'):
             need_update = True
 
     if need_update:
         if not version_remote:
-            version_remote = get_dicts_remote_version(lng)
+            version_remote = get_atm_remote_version(lng)
         KB_version = version_remote.get('KB')
 
-        print(f"Updating dicts from version \"{version_local.get('KB') if version_local.get('KB') else 'UNKNOWN'}\" to version \"{version_remote.get('KB')}\"...", file = sys.stderr)
+        print(f"Updating automata from version \"{version_local.get('KB') if version_local.get('KB') else 'UNKNOWN'}\" to version \"{version_remote.get('KB')}\"...", file = sys.stderr)
 
         tgz_fname = f'ATM_{KB_version}.tar.gz'
         tgz_local_path = os.path.join(arguments.indir, tgz_fname)
         tgz_etag_path = os.path.join(arguments.indir, f'.{tgz_fname}.etag')
-        tgz_remote_path = f'{get_dicts_basepath(lng)}/ATM_{KB_version}.tar.gz'
+        tgz_remote_path = f'{get_atm_basepath(lng)}/ATM_{KB_version}.tar.gz'
 
         download_with_check(tgz_remote_path, tgz_etag_path, tgz_local_path)
 
@@ -790,7 +790,7 @@ def main():
         tgz.extractall(arguments.indir)
         tgz.close()
 
-    # KB check and download - check if exists appropriate version of KB, over which dicts were created; othervise download it
+    # KB check and download - check if exists appropriate version of KB, over which automata were created; othervise download it
     print(f"Checking KB for the relevant required version \"{version_remote.get('KB')}\"...", file = sys.stderr)
     with open(fpath_version, 'r') as f:
         version_local = json.load(f)

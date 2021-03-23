@@ -12,17 +12,17 @@ DIR_LAUNCHED=`dirname "${0}"`
 # default values
 KB="inputs/KB.tsv"
 KB_GIVEN=false
-DICTS_LOWERCASE=false
-DICTS_URI=false
+ATM_LOWERCASE=false
+ATM_URI=false
 CEDAR=false
 DARTS=false
-DICTS_ALL=false
-DICTS_COMMON=true
-DICTS_AUTOCOMPLETE=false
+ATM_ALL=false
+ATM_COMMON=true
+ATM_AUTOCOMPLETE=false
 DIR_INPUTS=inputs
 DIR_OUTPUTS=outputs
 LANG=
-DICTS_TYPES_AUTOCOMPLETE=(p l x)
+ATM_TYPES_AUTOCOMPLETE=(p l x)
 CLEAN_CACHED=false
 PROCESSES=`nproc`
 
@@ -34,9 +34,9 @@ usage()
   echo "Usage: create_cedar.sh [-h] [--all|--autocomplete|-l|-u] [-c] [-d] [-I ${DIR_INPUTS}] [-O ${DIR_OUTPUTS}] [-p ${PROCESSES}] [-k ${KB}] --lang=<language>"
   echo ""
   echo -e "\t-h --help"
-  echo -e "\t-a --all           Create common, autocomplete, lowercase and uri dictionaries (otherwise without any parameters, it creates common dictionaries only)"
+  echo -e "\t-a --all           Create common, autocomplete, lowercase and uri automata (otherwise without any parameters, it creates common automata only)"
   echo -e "\t--lang=<language>"
-  echo -e "\t--autocomplete     Create autocomplete dictionaries only"
+  echo -e "\t--autocomplete     Create autocomplete automata only"
   echo -e "\t-l --lowercase"
   echo -e "\t-u --uri"
   echo -e "\t-c --cedar"
@@ -82,19 +82,19 @@ makeCommonAutomata() {
   EXT=$1
 
   F_NAMELIST_BASE="${DIR_OUTPUTS}/namelist"
-  F_DICT_BASE="${DIR_OUTPUTS}/automata"
+  F_ATM_BASE="${DIR_OUTPUTS}/automata"
 
-  if $DICTS_COMMON
+  if $ATM_COMMON
   then
-    makeAutomata "${F_NAMELIST_BASE}" "${F_DICT_BASE}$EXT"
+    makeAutomata "${F_NAMELIST_BASE}" "${F_ATM_BASE}$EXT"
   fi
-  if $DICTS_LOWERCASE
+  if $ATM_LOWERCASE
   then
-    makeAutomata "${F_NAMELIST_BASE}_lower" "${F_DICT_BASE}-lower$EXT"
+    makeAutomata "${F_NAMELIST_BASE}_lower" "${F_ATM_BASE}-lower$EXT"
   fi
-  if $DICTS_URI
+  if $ATM_URI
   then
-    makeAutomata "${F_NAMELIST_BASE}_uri" "${F_DICT_BASE}-uri$EXT"
+    makeAutomata "${F_NAMELIST_BASE}_uri" "${F_ATM_BASE}-uri$EXT"
   fi
 }
 
@@ -103,11 +103,11 @@ cutoutConfidence() {
 }
 
 
-clearDictsChoice() {
-  DICTS_COMMON=false
-  DICTS_AUTOCOMPLETE=false
-  DICTS_LOWERCASE=false
-  DICTS_URI=false
+clearAtmChoice() {
+  ATM_COMMON=false
+  ATM_AUTOCOMPLETE=false
+  ATM_LOWERCASE=false
+  ATM_URI=false
 }
 
 
@@ -123,19 +123,19 @@ while [ "$1" != "" ]; do
             LANG=$VALUE
             ;;
         -a | --all)
-            DICTS_ALL=true
+            ATM_ALL=true
             ;;
         --autocomplete)
-            clearDictsChoice
-            DICTS_AUTOCOMPLETE=true
+            clearAtmChoice
+            ATM_AUTOCOMPLETE=true
             ;;
         -l | --lowercase)
-            clearDictsChoice
-            DICTS_LOWERCASE=true
+            clearAtmChoice
+            ATM_LOWERCASE=true
             ;;
         -u | --uri)
-            clearDictsChoice
-            DICTS_URI=true
+            clearAtmChoice
+            ATM_URI=true
             ;;
         -c | --cedar)
             CEDAR=true
@@ -191,12 +191,12 @@ while [ "$1" != "" ]; do
 done
 
 
-if $DICTS_ALL # Insurance for both --all and --autocomplete parameters are given togerher.
+if $ATM_ALL # Insurance for both --all and --autocomplete parameters are given togerher.
 then
-  DICTS_COMMON=true
-  DICTS_AUTOCOMPLETE=true
-  DICTS_URI=true
-  DICTS_LOWERCASE=true
+  ATM_COMMON=true
+  ATM_AUTOCOMPLETE=true
+  ATM_URI=true
+  ATM_LOWERCASE=true
 fi
 
 
@@ -257,15 +257,15 @@ then
   echo "CZECH NAMEGEN version: ${NAMEGEN_VERSION}"
 fi
 
-DICTS_VERSION=`getGitBasedVersion ".."`
-echo "DICTS version: ${DICTS_VERSION}"
+ATM_VERSION=`getGitBasedVersion ".."`
+echo "AUTOMATA version: ${ATM_VERSION}"
 echo "---------------------------------"
 
 cat > "${VERSION_FILE}" << EOF
 {
   "KB": "${KB_VERSION}",
   "CZECH NAMEGEN": "${NAMEGEN_VERSION}",
-  "DICTS": "${DICTS_VERSION}"
+  "AUTOMATA": "${ATM_VERSION}"
 }
 EOF
 
@@ -316,7 +316,7 @@ fi
 # uprava stoplistu (kapitalizace a razeni)
 F_STOPLIST_BASE="${DIR_OUTPUTS}/stop_list"
 F_STOP_LIST="${F_STOPLIST_BASE}.all.sorted"
-if $DICTS_ALL || ! $DICTS_URI
+if $ATM_ALL || ! $ATM_URI
 then
   python get_morphological_forms.py < "${DIR_INPUTS}/${LANG}/stoplist.txt" | sort -u > "${F_STOPLIST_BASE}.var"
   cp "${F_STOPLIST_BASE}.var" "${F_STOPLIST_BASE}.all"
@@ -327,20 +327,20 @@ then
 fi
 
 
-if $DICTS_COMMON || $DICTS_LOWERCASE || $DICTS_URI
+if $ATM_COMMON || $ATM_LOWERCASE || $ATM_URI
 then
   #=====================================================================
   # vytvoreni seznamu klicu entit v KB, pridani fragmentu jmen a prijmeni entit a zajmen
   F_INTEXT_BASE="${DIR_OUTPUTS}/intext"
-  if $DICTS_COMMON
+  if $ATM_COMMON
   then
     eval "${SCRIPT_KB2NAMELIST}" | tr -s ' ' > "${F_INTEXT_BASE}"
   fi
-  if $DICTS_LOWERCASE
+  if $ATM_LOWERCASE
   then
     eval "${SCRIPT_KB2NAMELIST} -d" | tr -s ' ' > "${F_INTEXT_BASE}_lower"
   fi
-  if $DICTS_URI
+  if $ATM_URI
   then
     eval "${SCRIPT_KB2NAMELIST} -u" > "${F_INTEXT_BASE}_uri"
   fi
@@ -350,16 +350,16 @@ then
   # redukcia duplicit, abecedne zoradenie entit
   # odstranovani slov ze stop listu
   F_NAMELIST_BASE="${DIR_OUTPUTS}/namelist"
-  if $DICTS_ALL || ! $DICTS_URI
+  if $ATM_ALL || ! $ATM_URI
   then
     cutoutConfidence "${F_CONFIDENCE}"
     fname_suffixes=()
     
-    if $DICTS_COMMON
+    if $ATM_COMMON
     then
       fname_suffixes+=("")
     fi
-    if $DICTS_LOWERCASE
+    if $ATM_LOWERCASE
     then
       fname_suffixes+=("_lower")
     fi
@@ -369,7 +369,7 @@ then
       python uniq_namelist.py -s "${STOP_LIST}" -c "${F_CONFIDENCE}" < "${F_INTEXT_BASE}${fname_suffix}" > "${F_NAMELIST_BASE}${fname_suffix}"
     done
   fi
-  if $DICTS_URI
+  if $ATM_URI
   then
     python uniq_namelist.py -s "${STOP_LIST}" < "${F_INTEXT_BASE}_uri" > "${F_NAMELIST_BASE}_uri"
   fi
@@ -393,7 +393,7 @@ then
 fi
 
 
-if ${DICTS_AUTOCOMPLETE}
+if ${ATM_AUTOCOMPLETE}
 then
   F_INTEXT_AUTO="${DIR_OUTPUTS}/intext_auto"
   eval "${SCRIPT_KB2NAMELIST} -a" | tr -s ' ' | grep -v -e "[^;]N" > "${F_INTEXT_AUTO}"
@@ -408,12 +408,12 @@ then
 
   #======================================================================
   # skript, ktery slouci duplicty (cisla radku do jednoho) a vytvori pro prislusny soubor konecny automat
-  for dict_type in "${DICTS_TYPES_AUTOCOMPLETE[@]}"
+  for atm_type in "${ATM_TYPES_AUTOCOMPLETE[@]}"
   do
-    python uniq_namelist.py -s "${STOP_LIST}" -c "${F_CONFIDENCE}" < "${DIR_OUTPUTS}/${dict_type}_intext" > "${DIR_OUTPUTS}/${dict_type}_namelist"
+    python uniq_namelist.py -s "${STOP_LIST}" -c "${F_CONFIDENCE}" < "${DIR_OUTPUTS}/${atm_type}_intext" > "${DIR_OUTPUTS}/${atm_type}_namelist"
     for ext in "${EXTS[@]}"
     do
-      makeAutomata "${DIR_OUTPUTS}/${dict_type}_namelist" "${DIR_OUTPUTS}/${dict_type}_automata${ext}"
+      makeAutomata "${DIR_OUTPUTS}/${atm_type}_namelist" "${DIR_OUTPUTS}/${atm_type}_automata${ext}"
     done
   done
 
