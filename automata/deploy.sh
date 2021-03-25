@@ -2,7 +2,7 @@
 
 usage()
 {
-  echo "Usage: deploy.sh --lang <language> -u [<login>] [--dev]"
+  echo "Usage: ./deploy.sh --lang <language> -u [<login>] [--dev]"
   echo ""
   echo -e "\t-h --help              Show this message and exit"
   echo -e "\t--lang=<language>      Select language version to work with"
