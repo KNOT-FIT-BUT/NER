@@ -31,7 +31,7 @@ PROCESSES=`nproc`
 
 usage()
 {
-  echo "Usage: create_cedar.sh [-h] [--all|--autocomplete|-l|-u] [-c] [-d] [-I ${DIR_INPUTS}] [-O ${DIR_OUTPUTS}] [-p ${PROCESSES}] [-k ${KB}] --lang=<language>"
+  echo "Usage: ./create_cedar.sh [-h] [--all|--autocomplete|-l|-u] [-c] [-d] [-I ${DIR_INPUTS}] [-O ${DIR_OUTPUTS}] [-p ${PROCESSES}] [-k ${KB}] --lang=<language>"
   echo ""
   echo -e "\t-h --help"
   echo -e "\t-a --all           Create common, autocomplete, lowercase and uri automata (otherwise without any parameters, it creates common automata only)"
