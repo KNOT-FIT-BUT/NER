@@ -200,11 +200,13 @@ class Namelist(ABC):
 			if len(_key) < 2 or len(_key) > 80:
 				return
 
+			"""
 			# filtering out names ending by ., characters
 			if 'person' in _type_set:
 				if len(regex.findall(r"[.,]$", _key)) != 0:
 					print('Skipped part "filtering out names ending by .,  characters" for name: {}'.format(_key),  file = sys.stderr) # Karel IV. was filtered out => monitoring for which names this is useful (was intended)
 					#return
+			"""
 
 		# Get all inflection variants of key
 		key_inflections = None
