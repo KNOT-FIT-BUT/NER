@@ -23,12 +23,13 @@ kb_struct = None
 # multiple values delimiter
 KB_MULTIVALUE_DELIM = metrics_knowledge_base.KB_MULTIVALUE_DELIM
 
+args = None
 name_typeflag = []
 nationalities = []
 
 def extract_names_from_line(line):
     names = kb_struct.get_data_for(line, 'ALIASES').split(KB_MULTIVALUE_DELIM)
-    names.append(kb_struct.get_data_for(line, 'NAME'))
+    names.append(f"{kb_struct.get_data_for(line, 'NAME')}#lang={args.lang}")
     names = (a for a in names if a.strip() != "")
 
     return names

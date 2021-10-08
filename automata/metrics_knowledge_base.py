@@ -188,9 +188,9 @@ class KnowledgeBase:
 		ent_type_set = OrderedSet(ent_type)
 		
 		if "__generic__" in self.headKB and "__generic__" not in ent_type_set:
-			ent_type_set = ["__generic__"] | ent_type_set
+			ent_type_set = OrderedSet(["__generic__"]) | ent_type_set
 		if "__stats__" in self.headKB and "__stats__" not in ent_type_set:
-			ent_type_set = ent_type_set | ["__stats__"]
+			ent_type_set = ent_type_set | OrderedSet(["__stats__"])
 		
 		return ent_type_set
 
