@@ -64,6 +64,10 @@ parser.add_argument('-I', '--indir', help = 'directory base for auxiliary input 
 parser.add_argument('-O', '--outdir', default = '.', help = 'directory base cached / temporary / output files')
 parser.add_argument('-c', '--clean-cached', action = 'store_true', help = 'do not use previously created cached files')
 parser.add_argument('-n', '--processes', type = int, default = 4, help = 'numer of processes for multiprocessing pool.')
+parser.add_argument(
+	'-Q', '--entity-id', action = 'store_true',
+	help = 'Automata pointer will be entity id (usually wikidata Q-identifier) instead of line number.'
+)
 args = parser.parse_args()
 
 CACHED_SUBNAMES = 'cached_subnames.pkl'
@@ -106,7 +110,7 @@ def get_subnames_from_parts(subname_parts):
 	subnames = set()
 	subname_all = ''
 	for subname_part in subname_parts:
-		subname_part = regex.sub(r'#[A-Za-z0-9]E?( |-|–|$)', '\g<1>', subname_part)
+		subname_part = regex.sub(r'#[A-Za-z0-9]+E?( |-|–|$)', '\g<1>', subname_part)
 		subnames.add(subname_part)
 		if subname_all:
 			subname_part = ' ' + subname_part
@@ -150,11 +154,11 @@ def build_name_variant(ent_flag, strip_nameflags, inflection_parts, is_basic_for
 						#new_name_inflections.add(firstnames_surnames)
 
 			for n in new_name_inflections:
-				subnames |= get_subnames_from_parts(regex.findall(r'(\p{L}+#GE?)', n))
-				subnames |= get_subnames_from_parts(regex.findall(r'(\p{L}+#SE?(?: \p{L}+#[L78])*)', n))
+				subnames |= get_subnames_from_parts(regex.findall(r'(\p{L}+#j?GE?)', n))
+				subnames |= get_subnames_from_parts(regex.findall(r'(\p{L}+#j?SE?(?: \p{L}+#[L78])*)', n))
 			subnames = persons.get_normalized_subnames(subnames)
 		for n in new_name_inflections:
-			name_inflections.add(regex.sub(r'#[A-Za-z0-9]E?(?=-| |$)', '', n) if strip_nameflags else n)
+			name_inflections.add(regex.sub(r'#[A-Za-z0-9]+E?(?=-| |$)', '', n) if strip_nameflags else n)
 	return [name_inflections, subnames]
 
 # not used
@@ -263,7 +267,10 @@ def process_person_common(person_type, _fields, _line_num, confidence_threshold)
 
 	aliases = get_KB_names_ntypes_for(_fields)
 	name = kb_struct.get_data_for(_fields, 'NAME')
-	confidence = float(kb_struct.get_data_for(_fields, 'CONFIDENCE'))
+	try:
+		confidence = float(kb_struct.get_data_for(_fields, 'CONFIDENCE'))
+	except RuntimeError:
+		confidence = None
 
 	processed_surnames = set()
 	for n, t in aliases.items():
@@ -271,15 +278,15 @@ def process_person_common(person_type, _fields, _line_num, confidence_threshold)
 		if length >= 2 or is_capital_dominant(n):
 			namelist.addVariants(n, t, _line_num, person_type, _fields)
 
-		if confidence >= confidence_threshold:
-			surname_match = SURNAME_MATCH.search(name)
-			unwanted_match = UNWANTED_MATCH.search(name)
-			if surname_match and not unwanted_match:
-				surname = surname_match.group(0)
-				if surname not in processed_surnames and surname != name:
-					processed_surnames.add(surname)
-					if is_capital_dominant(surname):
-						namelist.addVariants(surname, t, _line_num, person_type, _fields)
+	if confidence is not None and confidence >= confidence_threshold:
+		surname_match = SURNAME_MATCH.search(name)
+		unwanted_match = UNWANTED_MATCH.search(name)
+		if surname_match and not unwanted_match:
+			surname = surname_match.group(0)
+			if surname not in processed_surnames and surname != name:
+				processed_surnames.add(surname)
+				if is_capital_dominant(surname):
+					namelist.addVariants(surname, t, _line_num, person_type, _fields)
 
 
 def is_capital_dominant(name):
@@ -376,13 +383,20 @@ if __name__ == "__main__":
 		for line_num, fields in enumerate(kb_struct.getKBLines(args.kb, metrics_knowledge_base.KB_PART.DATA), start = 1):
 			ent_type_set = kb_struct.get_ent_type(fields)
 
+			if args.entity_id:
+				entity_pointer = kb_struct.get_data_for(fields, 'ID')
+				if entity_pointer[0] == "Q":
+					entity_pointer = entity_pointer[1:]
+			else:
+				entity_pointer = str(line_num)
+
 			if 'person' in ent_type_set:
 				confidence_threshold = 20
 				if 'artist' in ent_type_set or kb_struct.get_data_for(fields, 'FICTIONAL') == '1':
 					confidence_threshold = 15
-				process_person_common(ent_type_set, fields, str(line_num), confidence_threshold)
+				process_person_common(ent_type_set, fields, entity_pointer, confidence_threshold)
 			else:
-				process_other(fields, str(line_num))
+				process_other(fields, entity_pointer)
 		#gc.collect()
 
 	# printing the output

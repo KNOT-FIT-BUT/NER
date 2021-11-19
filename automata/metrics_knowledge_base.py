@@ -271,7 +271,8 @@ class KnowledgeBase:
 		if "__stats__" in self.headKB:
 			metrics_cols = [self.get_col_for(columns, colname, "__stats__") for colname in self.headKB["__stats__"].keys()]
 		else:
-			metrics_cols = [self.get_col_for(columns, colname) for colname in ('WIKI BACKLINKS', 'WIKI HITS', 'WIKI PRIMARY SENSE', 'SCORE WIKI', 'SCORE METRICS', 'CONFIDENCE')]
+			print("WARNING: No metrics columns was found => it will continue without metrics.", file=sys.stderr, flush=True)
+			metrics_cols = []
 		
 		result = 0
 		# KB lines are indexed from one

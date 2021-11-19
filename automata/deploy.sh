@@ -1,17 +1,21 @@
 #!/bin/bash
 
+F_PREFIX_FOR_ENTITY_ID=q_
+
 usage()
 {
   echo "Usage: ./deploy.sh --lang <language> -u [<login>] [--dev]"
   echo ""
   echo -e "\t-h --help              Show this message and exit"
   echo -e "\t--lang=<language>      Select language version to work with"
+  echo -e "  -Q --entity-id       Automata pointer will be entity id (usually wikidata Q-identifier) instead of line number."
   echo -e "\t-u [<login=${USER}>]   Upload (deploy) automata to webstorage via given login (default current user)"
   echo -e "\t--dev                  Development mode (upload to separate space to prevent forming a new production version of automata))"
   echo ""
 }
 
 DEPLOY=false
+POINTER_AS_ENTITY_ID=false
 
 if test $# -eq 0
 then
@@ -29,6 +33,9 @@ while [ "$1" != "" ]; do
     ;;
     --lang)
       LANG=$VALUE
+    ;;
+    -Q | --entity-id)
+      POINTER_AS_ENTITY_ID=true
     ;;
     -u)
       DEPLOY=true
@@ -94,9 +101,18 @@ then
   find * -not -type d -not -path "deploy/*" -execdir cp "{}" ./deploy/tmp ";"
 
   cd deploy/tmp
-  
-  mv *.dct ../automata/
+
+  if test "${POINTER_AS_ENTITY_ID}" = true
+  then
+    ATM_PREFIX=${F_PREFIX_FOR_ENTITY_ID}
+  fi
+
+  echo "mv \"${ATM_PREFIX}*automata*.dct\" ../automata/"
+  mv ${ATM_PREFIX}*automata*.dct ../automata/
   mv VERSIONS.json ../automata/
+  # Remove any remaining automata (existing previous wikidata Q-automata if standard mode was launched or any existing
+  # previous standard automata if wikidata Q-automata mode was launched) to avoid upload these files to debug_files.
+  rm -f *.dct
   mv * ../debug_files/
   
   cd ..

@@ -27,10 +27,10 @@ class Namelist(ABC):
 	lst_allowed = []
 	alternatives = {}
 	
-	re_flag_names = r"(?:#[A-Z0-9]E?)"
-	re_flag_only1st_firstname = r"(?:#[GI]E?)"
-	re_flag_firstname = r"(?:#[G]E?)"
-	re_flag_sure_surname = r"(?:#[^GI]E?)"
+	re_flag_names = r"(?:#[A-Z0-9]+E?)"
+	re_flag_only1st_firstname = r"(?:#j?[GI]E?)"
+	re_flag_firstname = r"(?:#j?[G]E?)"
+	re_flag_sure_surname = r"(?:#j?[^GI]E?)"
 
 	def __init__(self, lang):
 		self.lang = lang
@@ -112,7 +112,7 @@ class Namelist(ABC):
 		"""
 
 
-		_key = regex.sub(r"#[A-Za-z0-9]E?(?= |,|\.|-|–|$)", "", _key)
+		_key = regex.sub(r"#[A-Za-z0-9]+E?(?= |,|\.|-|–|$)", "", _key)
 		if '\u200b' in _key:
 			self.add(regex.sub(r"\u200b *", ' ', _key), _value, _type) # Add new key with space instead of zero width space (including insurance against presence of multiple space due to added new one)
 			_key = regex.sub(r"#[A-Za-z0-9]+\u200b", '', _key) # Remove word mark including zero width space
@@ -259,7 +259,7 @@ class Namelist(ABC):
 							tmp_fn_others = name_parts.group(2).strip().split()
 							n_unknowns = name_parts.group(3).strip().split()
 							tmp_sn_all = name_parts.group(4)
-							if name_parts.group(5) in ['#S', '#SE']:
+							if name_parts.group(5) in ['#S', '#SE', '#jS', '#jSE']:
 								for i in range(len(n_unknowns) + 1):
 									sep_special = ""
 									fn_others_full = ""

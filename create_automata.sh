@@ -7,6 +7,7 @@ KB_ETAG_FILE=.KB.etag
 DEFAULT_LANG=cs
 LANG=
 LOG=false
+POINTER_AS_ENTITY_ID=false
 
 DEPLOY_ARGS=()
 ATM_ARGS=()
@@ -20,6 +21,7 @@ usage()
   echo -e "  -u [<login>]         Upload (deploy) automata to webstorage via given login (login \"${USER}\" is used by default)."
   echo -e "  -c --clean-cached    Do not use previously created cached files (usable for same version of KB only)."
   echo -e "  -k <KB path>         Local KB version (do not download it from distribuition storage)"
+  echo -e "  -Q --entity-id       Automata pointer will be entity id (usually wikidata Q-identifier) instead of line number."
   echo -e "  --dev                Development mode (upload to separate space to prevent forming a new production version of automata)"
   echo -e "  --log                Log to create_automata.sh.stdout, create_automata.sh.stderr and create_automata.sh.stdmix"
   echo ""
@@ -43,6 +45,9 @@ while [ "$1" != "" ]; do
     -k)
       KB_FILE=$2
       shift
+    ;;
+    -Q | --entity-id)
+      POINTER_AS_ENTITY_ID=true
     ;;
     -u)
       DEPLOY=true
@@ -161,10 +166,17 @@ else
   echo
 fi
 
-if test "${CLEAN_CACHED}" == "true"
+if test "${CLEAN_CACHED}" = true
 then
   ATM_ARGS+=("--clean-cached")
 fi
+
+if test "${POINTER_AS_ENTITY_ID}" = true
+then
+  ATM_ARGS+=("--entity-id")
+  DEPLOY_ARGS+=("--entity-id")
+fi
+
 
 echo "LAUNCHING automata creation"
 

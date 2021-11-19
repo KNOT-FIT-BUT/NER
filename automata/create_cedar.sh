@@ -25,6 +25,8 @@ LANG=
 ATM_TYPES_AUTOCOMPLETE=(p l x)
 CLEAN_CACHED=false
 PROCESSES=`nproc`
+POINTER_AS_ENTITY_ID=false
+F_PREFIX_FOR_ENTITY_ID=q_
 
 #=====================================================================
 # nastavovani parametru prikazove radky
@@ -46,6 +48,7 @@ usage()
   echo -e "\t-p --processes=${PROCESSES}     Numer of processes for multiprocessing pool purposes."
   echo -e "\t-I --indir=${DIR_LAUNCHED}/${DIR_INPUTS}"
   echo -e "\t-O --outdir=${DIR_LAUNCHED}/${DIR_OUTPUTS}"
+  echo -e "\t-Q --entity-id     Automata pointer will be entity id (usually wikidata Q-identifier) instead of line number."
   echo ""
 }
 
@@ -66,7 +69,7 @@ getGitBasedVersion()
     VERSION="nogit_`date \"+%Y%m%d-%H%M%S\"`"
   fi
   cd ${_OLDPWD}
-  
+
   echo $VERSION
 }
 
@@ -81,8 +84,13 @@ makeAutomata() {
 makeCommonAutomata() {
   EXT=$1
 
-  F_NAMELIST_BASE="${DIR_OUTPUTS}/namelist"
-  F_ATM_BASE="${DIR_OUTPUTS}/automata"
+  if "${POINTER_AS_ENTITY_ID}" = true
+  then
+    FILE_PREFIX=${F_PREFIX_FOR_ENTITY_ID}
+  fi
+
+  F_NAMELIST_BASE="${DIR_OUTPUTS}/${FILE_PREFIX}namelist"
+  F_ATM_BASE="${DIR_OUTPUTS}/${FILE_PREFIX}automata"
 
   if $ATM_COMMON
   then
@@ -99,7 +107,15 @@ makeCommonAutomata() {
 }
 
 cutoutConfidence() {
-  cat "${KB}" | sed '0,/^$/d' | awk '{print $(NF)}' > "${1}"
+  F_CONFIDENCE=${1}
+
+  rm -rf "${F_CONFIDENCE}"
+
+  HAS_CONFIDENCE=`cat "${KB}" | grep -P "^<__stats__>.*CONFIDENCE$" | wc -l`
+  if test ${HAS_CONFIDENCE} \> 0
+  then
+    cat "${KB}" | sed '0,/^$/d' | awk '{print $(NF)}' > "${F_CONFIDENCE}"
+  fi
 }
 
 
@@ -180,6 +196,9 @@ while [ "$1" != "" ]; do
               shift
             fi
             DIR_OUTPUTS=$VALUE
+            ;;
+        -Q | --entity-id)
+            POINTER_AS_ENTITY_ID=true
             ;;
         *)
             echo "ERROR: unknown parameter \"$PARAM\""
@@ -295,11 +314,18 @@ if ! test -f "${F_ENTITIES_TAGGED_INFLECTIONS}" || test `stat -c %Y "${F_ENTITIE
   mv "${F_TMP_ENTITIES_TAGGED_INFLECTIONS}" "${F_ENTITIES_TAGGED_INFLECTIONS}"
 fi
 
+KB2NAMELIST_ARGS=()
 if test "${CLEAN_CACHED}" = true
 then
-  KB2NAMELIST_ARGS="--clean-cached"
+  KB2NAMELIST_ARGS+=("--clean-cached")
 fi
-SCRIPT_KB2NAMELIST="python3 KB2namelist.py -l ${LANG} -k ${KB} -t \"${F_ENTITIES_TAGGED_INFLECTIONS}\" -I \"${DIR_INPUTS}\" -O \"${DIR_OUTPUTS}\" -n ${PROCESSES} ${KB2NAMELIST_ARGS}"
+
+if test "${POINTER_AS_ENTITY_ID}" = true
+then
+  KB2NAMELIST_ARGS+=("--entity-id")
+fi
+
+SCRIPT_KB2NAMELIST="python3 KB2namelist.py -l ${LANG} -k ${KB} -t \"${F_ENTITIES_TAGGED_INFLECTIONS}\" -I \"${DIR_INPUTS}\" -O \"${DIR_OUTPUTS}\" -n ${PROCESSES} ${KB2NAMELIST_ARGS[@]}"
 F_CONFIDENCE="${DIR_OUTPUTS}/KB_confidence"
 
 EXTS=()
@@ -318,20 +344,34 @@ F_STOPLIST_BASE="${DIR_OUTPUTS}/stop_list"
 F_STOP_LIST="${F_STOPLIST_BASE}.all.sorted"
 if $ATM_ALL || ! $ATM_URI
 then
-  python get_morphological_forms.py < "${DIR_INPUTS}/${LANG}/stoplist.txt" | sort -u > "${F_STOPLIST_BASE}.var"
-  cp "${F_STOPLIST_BASE}.var" "${F_STOPLIST_BASE}.all"
-  sed -e 's/\b\(.\)/\u\1/g' < "${F_STOPLIST_BASE}.var" >> "${F_STOPLIST_BASE}.all"
-  tr 'a-z' 'A-Z' < "${F_STOPLIST_BASE}.var" >> "${F_STOPLIST_BASE}.all"
-  tr 'A-Z' 'a-z' < "${F_STOPLIST_BASE}.var" >> "${F_STOPLIST_BASE}.all"
-  sort -u "${F_STOPLIST_BASE}.all" > "${F_STOP_LIST}"
+  FIN_STOPLIST="${DIR_INPUTS}/${LANG}/stoplist.txt"
+  if test -f "${FIN_STOPLIST}"
+  then
+    python get_morphological_forms.py < "${FIN_STOPLIST}" | sort -u > "${F_STOPLIST_BASE}.var"
+    cp "${F_STOPLIST_BASE}.var" "${F_STOPLIST_BASE}.all"
+    sed -e 's/\b\(.\)/\u\1/g' < "${F_STOPLIST_BASE}.var" >> "${F_STOPLIST_BASE}.all"
+    tr 'a-z' 'A-Z' < "${F_STOPLIST_BASE}.var" >> "${F_STOPLIST_BASE}.all"
+    tr 'A-Z' 'a-z' < "${F_STOPLIST_BASE}.var" >> "${F_STOPLIST_BASE}.all"
+    sort -u "${F_STOPLIST_BASE}.all" > "${F_STOP_LIST}"
+  else
+    >&2 echo "WARNING: Input stoplist file (${FIN_STOPLIST}) was not found => continue without stoplist."
+  fi
 fi
 
+
+if test "${POINTER_AS_ENTITY_ID}" = true
+then
+  F_INTEXT_NAMELIST_BASE_PREFIX="${F_PREFIX_FOR_ENTITY_ID}"
+fi
+
+# parsovanie confidence hodnot do samostatneho suboru
+cutoutConfidence "${F_CONFIDENCE}"
 
 if $ATM_COMMON || $ATM_LOWERCASE || $ATM_URI
 then
   #=====================================================================
   # vytvoreni seznamu klicu entit v KB, pridani fragmentu jmen a prijmeni entit a zajmen
-  F_INTEXT_BASE="${DIR_OUTPUTS}/intext"
+  F_INTEXT_BASE="${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}intext"
   if $ATM_COMMON
   then
     eval "${SCRIPT_KB2NAMELIST}" | tr -s ' ' > "${F_INTEXT_BASE}"
@@ -346,13 +386,11 @@ then
   fi
 
   #=====================================================================
-  # parsovanie confidence hodnot do samostatneho suboru
   # redukcia duplicit, abecedne zoradenie entit
   # odstranovani slov ze stop listu
-  F_NAMELIST_BASE="${DIR_OUTPUTS}/namelist"
+  F_NAMELIST_BASE="${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}namelist"
   if $ATM_ALL || ! $ATM_URI
   then
-    cutoutConfidence "${F_CONFIDENCE}"
     fname_suffixes=()
     
     if $ATM_COMMON
@@ -366,7 +404,12 @@ then
 
     for fname_suffix in "${fname_suffixes[@]}"
     do
-      python uniq_namelist.py -s "${STOP_LIST}" -c "${F_CONFIDENCE}" < "${F_INTEXT_BASE}${fname_suffix}" > "${F_NAMELIST_BASE}${fname_suffix}"
+      CMD="python uniq_namelist.py -s \"${STOP_LIST}\""
+      if test -f "${F_CONFIDENCE}"
+      then
+        CMD+= -c "${F_CONFIDENCE}"
+      fi
+      ${CMD} < "${F_INTEXT_BASE}${fname_suffix}" > "${F_NAMELIST_BASE}${fname_suffix}"
     done
   fi
   if $ATM_URI
@@ -395,25 +438,28 @@ fi
 
 if ${ATM_AUTOCOMPLETE}
 then
-  F_INTEXT_AUTO="${DIR_OUTPUTS}/intext_auto"
+  F_INTEXT_AUTO="${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}intext_auto"
   eval "${SCRIPT_KB2NAMELIST} -a" | tr -s ' ' | grep -v -e "[^;]N" > "${F_INTEXT_AUTO}"
-  cat "${F_INTEXT_AUTO}" | grep -P "^person:" | sed -r 's/^person:\t//' > "${DIR_OUTPUTS}/p_intext"
-  cat "${F_INTEXT_AUTO}" | grep -P "^geographical:" | sed -r 's/^geographical:\t//' > "${DIR_OUTPUTS}/l_intext"
-  cut -f2- "${F_INTEXT_AUTO}" > "${DIR_OUTPUTS}/x_intext"
+  cat "${F_INTEXT_AUTO}" | grep -P "^person:" | sed -r 's/^person:\t//' > "${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}p_intext"
+  cat "${F_INTEXT_AUTO}" | grep -P "^geographical:" | sed -r 's/^geographical:\t//' > "${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}l_intext"
+  cut -f2- "${F_INTEXT_AUTO}" > "${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}x_intext"
 
   #======================================================================
-  # parsovanie confidence hodnot do samostatneho suboru + stop list
-  cutoutConfidence "${F_CONFIDENCE}"
   # cp stop_list stop_list.all.sorted # TODO: is there needed some special version of stoplist for autocomplete?
 
   #======================================================================
   # skript, ktery slouci duplicty (cisla radku do jednoho) a vytvori pro prislusny soubor konecny automat
   for atm_type in "${ATM_TYPES_AUTOCOMPLETE[@]}"
   do
-    python uniq_namelist.py -s "${STOP_LIST}" -c "${F_CONFIDENCE}" < "${DIR_OUTPUTS}/${atm_type}_intext" > "${DIR_OUTPUTS}/${atm_type}_namelist"
+    CMD="python uniq_namelist.py -s \"${STOP_LIST}\""
+    if test -f "${F_CONFIDENCE}"
+    then
+      CMD+= -c "${F_CONFIDENCE}"
+    fi
+    ${CMD} < "${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}${atm_type}_intext" > "${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}${atm_type}_namelist"
     for ext in "${EXTS[@]}"
     do
-      makeAutomata "${DIR_OUTPUTS}/${atm_type}_namelist" "${DIR_OUTPUTS}/${atm_type}_automata${ext}"
+      makeAutomata "${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}${atm_type}_namelist" "${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}${atm_type}_automata${ext}"
     done
   done
 
