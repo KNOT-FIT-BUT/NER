@@ -8,15 +8,17 @@ DEFAULT_LANG=cs
 LANG=
 LOG=false
 POINTER_AS_ENTITY_ID=false
+ATM_COMMON_ONLY=false
 
 DEPLOY_ARGS=()
 ATM_ARGS=()
 
 usage()
 {
-  echo "Usage: ./create_automata.sh --lang=<language> [-u [<login>]] [-c | --clean-cached] [-k <KB path>] [--dev] [--log]"
+  echo "Usage: ./create_automata.sh --lang=<language> [--common-only] [-u [<login>]] [-c | --clean-cached] [-k <KB path>] [--dev] [--log]"
   echo ""
   echo -e "  -h --help"
+  echo -e "  --common-only        Create common automata only (otherwise it creates all automatas including autocomplete, lowercase and uri also)"
   echo -e "  --lang=${DEFAULT_LANG}    Create automata for given langueage."
   echo -e "  -u [<login>]         Upload (deploy) automata to webstorage via given login (login \"${USER}\" is used by default)."
   echo -e "  -c --clean-cached    Do not use previously created cached files (usable for same version of KB only)."
@@ -35,6 +37,9 @@ while [ "$1" != "" ]; do
     -h | --help)
       usage
       exit
+    ;;
+    --common-only)
+      ATM_COMMON_ONLY=true
     ;;
     --lang)
       LANG=${VALUE,,}
@@ -177,10 +182,15 @@ then
   DEPLOY_ARGS+=("--entity-id")
 fi
 
+if test "${ATM_COMMON_ONLY}" != true
+then
+  ATM_ARGS+=("-a")
+fi
+
 
 echo "LAUNCHING automata creation"
 
-${ATM_BASEDIR}/create_cedar.sh -a --lang=${LANG} -k "${KB_FILE}" "${ATM_ARGS[@]}"
+${ATM_BASEDIR}/create_cedar.sh --lang=${LANG} -k "${KB_FILE}" "${ATM_ARGS[@]}"
 
 if test "${DEPLOY}" == "true"
 then
