@@ -19,11 +19,13 @@ class EntitiesTaggedInflections(ABC):
 			os.makedirs(os.path.exists)
 
 	def process(self):
-		cmd = shlex.split(self.getProcessCommand())
+		process_command = self.getProcessCommand()
+		if process_command:
+			cmd = shlex.split(process_command)
 		
-		with open(self.outlogfile, 'wb') as logfile, open(self.outerrfile, 'wb') as errfile:
-			ps = subprocess.Popen(cmd, stdout = logfile, stderr = errfile)
-			ps.communicate()
+			with open(self.outlogfile, 'wb') as logfile, open(self.outerrfile, 'wb') as errfile:
+				ps = subprocess.Popen(cmd, stdout = logfile, stderr = errfile)
+				ps.communicate()
 
 
 	@abstractmethod

@@ -29,7 +29,7 @@ class Persons(ABC):
 	# overriden in lang-specific modules
 	def get_ROLE_PREFIX(self):
 		return None
-    
+
 	# it may be completed or overriden in lang-specific modules
 	def get_LOCATION_PREPOSITIONS(self):
 		return ["of"]
@@ -89,7 +89,7 @@ class Persons(ABC):
 		for name in src_names:
 			# remove all name flags
 			name = regex.sub(r"#lang=[^#|]*", "", name)
-            
+
 			# normalize whitespaces
 			name = regex.sub('\s+', ' ', name)
 			name_with_location = name
@@ -125,7 +125,7 @@ class Persons(ABC):
 						roles_lower.append(role_itself.lower())
 
 			for subname in subnames:
-				if not len(subname):
+				if len(subname) <= 1:
 					continue
 				if subname[-1] == ",":
 					subname = subname[:-1]

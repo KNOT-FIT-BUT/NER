@@ -232,14 +232,17 @@ def process_taggednames(f_taggednames, strip_nameflags = True):
 		named_inflections = pickle_load(path_cached_inflectednames)
 	else:
 		pool = Pool(args.processes)
-		with open(f_taggednames) as f:
-			results = pool.starmap(process_name_inflections, zip(f, itertools.repeat(strip_nameflags)))
-			for name, inflections, name_subnames in results:
-				if name not in named_inflections:
-					named_inflections[name] = inflections
-				else:
-					named_inflections[name] |= inflections
-				subnames |= name_subnames
+		try:
+			with open(f_taggednames) as f:
+				results = pool.starmap(process_name_inflections, zip(f, itertools.repeat(strip_nameflags)))
+				for name, inflections, name_subnames in results:
+					if name not in named_inflections:
+						named_inflections[name] = inflections
+					else:
+						named_inflections[name] |= inflections
+					subnames |= name_subnames
+		except FileNotFoundError:
+			pass
 		if subnames:
 			pickle_dump(subnames, path_cached_subnames)
 			pickle_dump(named_inflections, path_cached_inflectednames)

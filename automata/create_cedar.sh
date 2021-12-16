@@ -295,13 +295,13 @@ F_ENTITIES_TAGGED_INFLECTIONS="entities_tagged_inflections_${KB_VERSION}.tsv"
 # temporary files to avoid skipping of generating target files, when generating failed or aborted
 F_TMP_ENTITIES_WITH_TYPEFLAGS="_${F_ENTITIES_WITH_TYPEFLAGS}"
 F_TMP_ENTITIES_TAGGED_INFLECTIONS="_${F_ENTITIES_TAGGED_INFLECTIONS}"
-  
+
 F_ENTITIES_WITH_TYPEFLAGS="${DIR_OUTPUTS}/${F_ENTITIES_WITH_TYPEFLAGS}"
 F_ENTITIES_TAGGED_INFLECTIONS="${DIR_OUTPUTS}/${F_ENTITIES_TAGGED_INFLECTIONS}"
 F_ENTITIES_TAGGED_INFLECTIONS_INVALID="${F_ENTITIES_TAGGED_INFLECTIONS}.invalid"
 F_TMP_ENTITIES_WITH_TYPEFLAGS="${DIR_OUTPUTS}/${F_TMP_ENTITIES_WITH_TYPEFLAGS}"
 F_TMP_ENTITIES_TAGGED_INFLECTIONS="${DIR_OUTPUTS}/${F_TMP_ENTITIES_TAGGED_INFLECTIONS}"
-  
+
 # Skip generating some files if exist, because they are very time consumed
 if test "${CLEAN_CACHED}" = "true" || ! test -f "${F_ENTITIES_WITH_TYPEFLAGS}"; then
   # Be careful > "Ά" or "Α" in "sed" is foreign char not "A" from Latin(-base) chars.
@@ -311,7 +311,10 @@ fi
 
 if ! test -f "${F_ENTITIES_TAGGED_INFLECTIONS}" || test `stat -c %Y "${F_ENTITIES_TAGGED_INFLECTIONS}"` -lt `stat -c %Y "${F_ENTITIES_WITH_TYPEFLAGS}"` || test "${CLEAN_CACHED}" = true; then
   python3 get_entities_tagged_inflections.py -l ${LANG} -o "${F_TMP_ENTITIES_TAGGED_INFLECTIONS}" -i "${F_ENTITIES_WITH_TYPEFLAGS}" >"${F_TMP_ENTITIES_TAGGED_INFLECTIONS}.log" 2>"${F_TMP_ENTITIES_TAGGED_INFLECTIONS}.err.log" #-x "${F_ENTITIES_TAGGED_INFLECTIONS_INVALID}_gender" -X "${F_ENTITIES_TAGGED_INFLECTIONS_INVALID}_inflection" "${F_ENTITIES_WITH_TYPEFLAGS}"
-  mv "${F_TMP_ENTITIES_TAGGED_INFLECTIONS}" "${F_ENTITIES_TAGGED_INFLECTIONS}"
+  if test -f "{F_TMP_ENTITIES_TAGGED_INFLECTIONS}"
+  then
+    mv "${F_TMP_ENTITIES_TAGGED_INFLECTIONS}" "${F_ENTITIES_TAGGED_INFLECTIONS}"
+  fi
 fi
 
 KB2NAMELIST_ARGS=()
@@ -392,7 +395,7 @@ then
   if $ATM_ALL || ! $ATM_URI
   then
     fname_suffixes=()
-    
+
     if $ATM_COMMON
     then
       fname_suffixes+=("")

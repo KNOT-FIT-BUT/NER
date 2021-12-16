@@ -175,8 +175,9 @@ class KnowledgeBase:
 
 		head = []
 		for ent_supertype in ent_type_set:
+			if ent_supertype not in self.headKB:
+				raise Exception(f'Not defined type "{ent_supertype}" in head of KB.')
 			head.extend([item[0] for item in sorted(self.headKB[ent_supertype].items(), key=lambda i: i[-1])])
-		
 		return head
 
 
