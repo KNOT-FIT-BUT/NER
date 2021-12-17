@@ -15,7 +15,7 @@ ATM_ARGS=()
 
 usage()
 {
-  echo "Usage: ./create_automata.sh --lang=<language> [--common-only] [-u [<login>]] [-c | --clean-cached] [-k <KB path>] [--dev] [--log]"
+  echo "Usage: ./create_automata.sh --lang=<language> [--common-only] [-c | --clean-cached] [-Q | --entity-id] [-k <KB path>] [-u [<login>]] [--dev] [--log]"
   echo ""
   echo -e "  -h --help"
   echo -e "  --common-only        Create common automata only (otherwise it creates all automatas including autocomplete, lowercase and uri also)"
