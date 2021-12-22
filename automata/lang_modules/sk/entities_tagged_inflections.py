@@ -14,7 +14,7 @@ from entities_tagged_inflections import EntitiesTaggedInflections as ParentClass
 class EntitiesTaggedInflections(ParentClass):
 	def getProcessCommand(self):
 		dir_script = os.path.join(os.getcwd(), os.path.dirname(__file__))
-		return 'python3 {}/czechnames/namegen.py --include-no-morphs --error-words {}/ma_unknown_words.lntrf -o "{}" "{}"'.format(dir_script, self.outdir, self.outfile, self.infile)
+		return 'python3 {}/../../libs/namegen/namegen.py --include-no-morphs --error-words {}/ma_unknown_words.lntrf -o "{}" "{}"'.format(dir_script, self.outdir, self.outfile, self.infile)
 
 
 	def processExtra(self):

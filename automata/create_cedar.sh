@@ -272,8 +272,8 @@ echo "KB version: ${KB_VERSION}"
 
 if test "${LANG}" == "cs"
 then
-  NAMEGEN_VERSION=`getGitBasedVersion "./lang_modules/cs/czechnames/"`
-  echo "CZECH NAMEGEN version: ${NAMEGEN_VERSION}"
+  NAMEGEN_VERSION=`getGitBasedVersion "../libs/namegen/"`
+  echo "NAMEGEN version: ${NAMEGEN_VERSION}"
 fi
 
 ATM_VERSION=`getGitBasedVersion ".."`
@@ -410,7 +410,7 @@ then
       CMD="python uniq_namelist.py -s \"${STOP_LIST}\""
       if test -f "${F_CONFIDENCE}"
       then
-        CMD+= -c "${F_CONFIDENCE}"
+        CMD+=" -c ${F_CONFIDENCE}"
       fi
       ${CMD} < "${F_INTEXT_BASE}${fname_suffix}" > "${F_NAMELIST_BASE}${fname_suffix}"
     done
@@ -457,7 +457,7 @@ then
     CMD="python uniq_namelist.py -s \"${STOP_LIST}\""
     if test -f "${F_CONFIDENCE}"
     then
-      CMD+= -c "${F_CONFIDENCE}"
+      CMD+=" -c ${F_CONFIDENCE}"
     fi
     ${CMD} < "${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}${atm_type}_intext" > "${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}${atm_type}_namelist"
     for ext in "${EXTS[@]}"
