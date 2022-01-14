@@ -12,5 +12,5 @@ from entities_tagged_inflections import EntitiesTaggedInflections as ParentClass
 
 
 class EntitiesTaggedInflections(ParentClass):
-	def getProcessCommand(self):
-		return ''
+	def getProcessCommand(self) -> str:
+		return ""

@@ -19,11 +19,10 @@ if __name__ == "__main__":
 
 	try:
 		module_eti = importlib.import_module(module2import)
-	except ModuleNotFoundError:
-		print('No implementation for given language.', flush = True, file = sys.stderr)
+	except ModuleNotFoundError as e:
+		print(f"ERROR in tagged inflections for entities: No implementation for given language. (Detail: {e})", flush = True, file = sys.stderr)
 		sys.exit(1)
 
 	module_eti = importlib.import_module(module2import)
 	eti = module_eti.EntitiesTaggedInflections(args.input, args.output)
 	eti.process()
-	eti.processExtra()
