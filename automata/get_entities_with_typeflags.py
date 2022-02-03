@@ -38,6 +38,9 @@ def extract_names_from_line(line):
 def append_names_to_list(names, type_flags, url_origin):
     for n in names:
         n = re.sub('\s+', ' ', n).strip()
+        name_parts = n.split("#", 1)
+        if not name_parts[0]:
+            continue
         name_type_flags = type_flags
 
         match = re.search(r"#ntype=([^|#]+).*$", n)

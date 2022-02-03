@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import re
 import subprocess
 import shlex
 import sys
@@ -9,7 +10,8 @@ import sys
 from abc import ABC, abstractmethod
 
 class EntitiesTaggedInflections(ABC):
-	def __init__(self, infile, outfile):
+	def __init__(self, lang: str, infile: str, outfile:str) -> None:
+		self.lang = lang
 		self.infile = os.path.realpath(infile)
 		self.outfile = os.path.realpath(outfile)
 		self.outlogfile = '{}.log'.format(self.outfile)
@@ -48,23 +50,32 @@ class EntitiesTaggedInflections(ABC):
 
 	def _process_namegen(self) -> str:
 		dir_script = os.path.join(os.getcwd(), os.path.dirname(__file__))
-		return 'python3 {}/../libs/namegen/namegen.py --include-no-morphs --error-words {}/ma_unknown_words.lntrf -o "{}" "{}"'.format(dir_script, self.outdir, self.outfile, self.infile)
+		return f'python3 {dir_script}/../libs/namegen/namegen.py --def-lang {self.lang} --include-no-morphs --error-words {self.outdir}/ma_unknown_words.lntrf -o "{self.outfile}" "{self.infile}"'
 
 	def _process_extra_namegen(self) -> None:
 		for type_flag, fn_label in {'G': 'given_names', 'L': 'locations', 'S': 'surnames'}.items():
 			fn_out = f"{self.outdir}/ma_suggested_{fn_label}.lntrf"
-			cmd = f'grep -P "\tj{type_flag}" {self.outdir}/ma_unknown_words.lntrf'
-			with open(fn_out, 'w') as f_out:
-				try:
-					out = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT, universal_newlines=True)
-				except subprocess.CalledProcessError as e:
-					err_detail = ""
-					if e.returncode == 2:
-						err_msg_base = "File not found:"
-					elif e.returncode:
-						err_msg_base = "Execution of following command"
-					print(f"ERROR in name suggestions: {err_msg_base} failed with return code {e.returncode}.\nDetail: {e.output.strip().splitlines()[-1]}\n(command: {cmd})", file=sys.stderr)
-					sys.exit(11)
-				else:
-					f_out.write(out)
+			cmd = f"grep -P '\tj{type_flag}' {self.outdir}/ma_unknown_words.lntrf"
+			self._run_cmd_save_output_to_file(cmd=cmd, file_path=fn_out)
+
+			for lang, re_pattern in {self.lang: re.escape(self.lang), "unknown": ""}.items():
+				fn_out_lang = f"{self.outdir}/ma_suggested_{fn_label}_lang_{lang}.lntrf"
+				cmd = f"grep -P '^{re_pattern}\t' {self.outdir}/ma_suggested_{fn_label}.lntrf"
+				self._run_cmd_save_output_to_file(cmd=cmd, file_path=fn_out_lang)
+
+	def _run_cmd_save_output_to_file(self, cmd: str, file_path: str) -> None:
+		with open(file_path, 'w') as f_out:
+			try:
+				out = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT, universal_newlines=True)
+			except subprocess.CalledProcessError as e:
+				err_detail = ""
+				if e.returncode == 2:
+					err_msg_base = "File not found:"
+				elif e.returncode:
+					err_msg_base = "Execution of following command"
+				print(f"ERROR in name suggestions: {err_msg_base} failed with return code {e.returncode}.\nDetail: {e.output.strip().splitlines()[-1]}\n(command: {cmd})", file=sys.stderr)
+				sys.exit(11)
+			else:
+				f_out.write(out)
+
 

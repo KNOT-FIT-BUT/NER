@@ -1,7 +1,7 @@
 .PHONY: all clean
 
 all:
-	git submodule update --init
+	if test `git submodule status | grep -cP "^-"` -gt 0; then git submodule update --init; fi
 	make -C ./SharedKB/var2/
 	make -C ./figa/src/
 

@@ -24,5 +24,5 @@ if __name__ == "__main__":
 		sys.exit(1)
 
 	module_eti = importlib.import_module(module2import)
-	eti = module_eti.EntitiesTaggedInflections(args.input, args.output)
+	eti = module_eti.EntitiesTaggedInflections(lang=args.lang, infile=args.input, outfile=args.output)
 	eti.process()

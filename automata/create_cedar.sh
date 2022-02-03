@@ -304,14 +304,18 @@ F_TMP_ENTITIES_TAGGED_INFLECTIONS="${DIR_OUTPUTS}/${F_TMP_ENTITIES_TAGGED_INFLEC
 
 # Skip generating some files if exist, because they are very time consumed
 if test "${CLEAN_CACHED}" = "true" || ! test -f "${F_ENTITIES_WITH_TYPEFLAGS}"; then
-  # Be careful > "Ά" or "Α" in "sed" is foreign char not "A" from Latin(-base) chars.
   python3 get_entities_with_typeflags.py -k "$KB" --lang ${LANG} | awk -F"\t" 'NF>2{key = $1 "\t" $2 "\t" $3; a[key] = a[key] (a[key] ? " " : "") $4;};END{for(i in a) print i "\t" a[i]}' > "${F_TMP_ENTITIES_WITH_TYPEFLAGS}"
   mv "${F_TMP_ENTITIES_WITH_TYPEFLAGS}" "${F_ENTITIES_WITH_TYPEFLAGS}" 2>/dev/null
 fi
 
 if ! test -f "${F_ENTITIES_TAGGED_INFLECTIONS}" || test `stat -c %Y "${F_ENTITIES_TAGGED_INFLECTIONS}"` -lt `stat -c %Y "${F_ENTITIES_WITH_TYPEFLAGS}"` || test "${CLEAN_CACHED}" = true; then
-  python3 get_entities_tagged_inflections.py -l ${LANG} -o "${F_TMP_ENTITIES_TAGGED_INFLECTIONS}" -i "${F_ENTITIES_WITH_TYPEFLAGS}" >"${F_TMP_ENTITIES_TAGGED_INFLECTIONS}.log" 2>"${F_TMP_ENTITIES_TAGGED_INFLECTIONS}.err.log" #-x "${F_ENTITIES_TAGGED_INFLECTIONS_INVALID}_gender" -X "${F_ENTITIES_TAGGED_INFLECTIONS_INVALID}_inflection" "${F_ENTITIES_WITH_TYPEFLAGS}"
-  if test -f "{F_TMP_ENTITIES_TAGGED_INFLECTIONS}"
+  python3 get_entities_tagged_inflections.py -l ${LANG} -o "${F_TMP_ENTITIES_TAGGED_INFLECTIONS}" -i "${F_ENTITIES_WITH_TYPEFLAGS}"
+  if test $? != 0
+  then
+    >&2 echo "STOPPED due to some error occurs while getting tagged inflections of entities".
+    exit 20
+  fi
+  if test -f "${F_TMP_ENTITIES_TAGGED_INFLECTIONS}"
   then
     mv "${F_TMP_ENTITIES_TAGGED_INFLECTIONS}" "${F_ENTITIES_TAGGED_INFLECTIONS}"
   fi
