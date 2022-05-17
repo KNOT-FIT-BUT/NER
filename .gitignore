@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 *.bak
+*.tsv
 *.sh.std*
 *.sh.fifo.std*
 nohup.out

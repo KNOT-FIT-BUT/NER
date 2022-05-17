@@ -33,6 +33,7 @@ import pickle
 import regex
 
 from multiprocessing import Pool
+from pandas import to_numeric
 
 import metrics_knowledge_base
 
@@ -271,7 +272,7 @@ def process_person_common(person_type, _fields, _line_num, confidence_threshold)
 	aliases = get_KB_names_ntypes_for(_fields)
 	name = kb_struct.get_data_for(_fields, 'NAME')
 	try:
-		confidence = float(kb_struct.get_data_for(_fields, 'CONFIDENCE'))
+		confidence = float(to_numeric(kb_struct.get_data_for(_fields, 'CONFIDENCE')))
 	except RuntimeError:
 		confidence = None
 

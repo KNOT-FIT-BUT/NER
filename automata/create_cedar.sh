@@ -114,7 +114,7 @@ cutoutConfidence() {
   HAS_CONFIDENCE=`cat "${KB}" | grep -P "^<__stats__>.*CONFIDENCE$" | wc -l`
   if test ${HAS_CONFIDENCE} \> 0
   then
-    cat "${KB}" | sed '0,/^$/d' | awk '{print $(NF)}' > "${F_CONFIDENCE}"
+    cat "${KB}" | sed '0,/^$/d' | awk -F $'\t' '{print $(NF)}' > "${F_CONFIDENCE}"
   fi
 }
 
