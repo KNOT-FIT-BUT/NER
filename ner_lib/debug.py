@@ -46,6 +46,7 @@ def print_dbg_en(*args, **kwargs):
 	delim = kwargs.get("delim", " ")
 	stack_num = kwargs.get("stack_num", 1)
 
+	args = [str(i) for i in args]
 	sys.stderr.write("%s:\n'''\n%s\n'''\n" % (getInspectInfo(stack_num), delim.join(args)))
 	sys.stderr.flush()
 

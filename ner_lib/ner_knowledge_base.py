@@ -276,7 +276,7 @@ class KnowledgeBase():
 		column_data_list = self.get_complete_data(line)
 
 		column_repr_list = []
-		for column_head, column_data in itertools.izip_longest(column_head_list, column_data_list):
+		for column_head, column_data in itertools.zip_longest(column_head_list, column_data_list):
 			column_repr_list.append("%s: %s" % (column_head and column_head.name, column_data))
 
 		return len(column_repr_list), "\n".join(column_repr_list)
