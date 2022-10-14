@@ -1,8 +1,8 @@
 [submodule "SharedKB"]
 	path = SharedKB
-	url = https://github.com/KNOT-FIT-BUT/SharedKB.git
+	url = git@github.com:KNOT-FIT-BUT/SharedKB.git
 
 [submodule "libs/namegen"]
 	path = libs/namegen
-	url = https://github.com/KNOT-FIT-BUT/namegen.git
+	url = git@github.com:KNOT-FIT-BUT/namegen.git
         branch = devel
