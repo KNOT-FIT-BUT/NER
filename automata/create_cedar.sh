@@ -61,7 +61,7 @@ getGitBasedVersion()
   VERSION=`git rev-parse --short HEAD 2>/dev/null`
   if test "${?}" -eq 0 && test "$PWD" == "`git rev-parse --show-toplevel`"
   then
-    if ! test -z "`git status --short`"
+    if ! test -z "`git status --short --untracked-files=no`"
     then
       VERSION="${VERSION}_dirty_`date \"+%Y%m%d-%H%M%S\"`"
     fi
