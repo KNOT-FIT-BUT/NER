@@ -68,12 +68,15 @@ class EntitiesTaggedInflections(ABC):
 			try:
 				out = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT, universal_newlines=True)
 			except subprocess.CalledProcessError as e:
-				err_detail = ""
+				err_output_detail = ""
+				err_msg_base = ""
 				if e.returncode == 2:
 					err_msg_base = "File not found:"
 				elif e.returncode:
 					err_msg_base = "Execution of following command"
-				print(f"ERROR in name suggestions: {err_msg_base} failed with return code {e.returncode}.\nDetail: {e.output.strip().splitlines()[-1]}\n(command: {cmd})", file=sys.stderr)
+				if len(e.output.strip()):
+					err_output_detail = f"\nDetail: {e.output.strip().splitlines()[-1]}"
+				print(f"ERROR in name suggestions: {err_msg_base} failed with return code {e.returncode}.{err_output_detail}\n(command: {cmd})", file=sys.stderr, flush=True)
 				sys.exit(11)
 			else:
 				f_out.write(out)

@@ -1,7 +1,8 @@
 __pycache__/
-*.pyc
-*.bak
-*.tsv
-*.sh.std*
-*.sh.fifo.std*
+**.pyc
+**.bak
+**.tsv
+**.sh.std*
+**.sh.fifo.std*
+**.log
 nohup.out
