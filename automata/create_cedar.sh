@@ -61,7 +61,7 @@ getGitBasedVersion()
   VERSION=`git rev-parse --short HEAD 2>/dev/null`
   if test "${?}" -eq 0 && test "$PWD" == "`git rev-parse --show-toplevel`"
   then
-    if ! test -z "`git status --short`"
+    if ! test -z "`git status --short --untracked-files=no`"
     then
       VERSION="${VERSION}_dirty_`date \"+%Y%m%d-%H%M%S\"`"
     fi
@@ -305,10 +305,11 @@ F_TMP_ENTITIES_TAGGED_INFLECTIONS="${DIR_OUTPUTS}/${F_TMP_ENTITIES_TAGGED_INFLEC
 # Skip generating some files if exist, because they are very time consumed
 if test "${CLEAN_CACHED}" = "true" || ! test -f "${F_ENTITIES_WITH_TYPEFLAGS}"; then
   python3 get_entities_with_typeflags.py -k "$KB" --lang ${LANG} | awk -F"\t" 'NF>2{key = $1 "\t" $2 "\t" $3; a[key] = a[key] (a[key] ? " " : "") $4;};END{for(i in a) print i "\t" a[i]}' > "${F_TMP_ENTITIES_WITH_TYPEFLAGS}"
+  retval_entities_with_typeflags="${PIPESTATUS[0]}"
   mv "${F_TMP_ENTITIES_WITH_TYPEFLAGS}" "${F_ENTITIES_WITH_TYPEFLAGS}" 2>/dev/null
 fi
 
-if ! test -f "${F_ENTITIES_TAGGED_INFLECTIONS}" || test `stat -c %Y "${F_ENTITIES_TAGGED_INFLECTIONS}"` -lt `stat -c %Y "${F_ENTITIES_WITH_TYPEFLAGS}"` || test "${CLEAN_CACHED}" = true; then
+if test "${retval_entities_with_typeflags}" -gt 0 || test -f "${F_ENTITIES_TAGGED_INFLECTIONS}" || test `stat -c %Y "${F_ENTITIES_TAGGED_INFLECTIONS}"` -lt `stat -c %Y "${F_ENTITIES_WITH_TYPEFLAGS}"` || test "${CLEAN_CACHED}" = true; then
   python3 get_entities_tagged_inflections.py -l ${LANG} -o "${F_TMP_ENTITIES_TAGGED_INFLECTIONS}" -i "${F_ENTITIES_WITH_TYPEFLAGS}"
   if test $? != 0
   then
