@@ -163,7 +163,7 @@ while [ "$1" != "" ]; do
             if [ "$PARAM" = "-k" ]; then
               if [ "$2" = "" ]; then
                 usage
-                exit
+                exit 1
               else
                 VALUE="$2"
                 shift
@@ -203,7 +203,7 @@ while [ "$1" != "" ]; do
         *)
             echo "ERROR: unknown parameter \"$PARAM\""
             usage
-            exit 1
+            exit 2
             ;;
     esac
     shift
@@ -228,7 +228,7 @@ if test "${LANG}" == ""
 then
   echo "ERROR: Language was not specified." >&2
   usage
-  exit 2
+  exit 4
 else
   LANG=${LANG,,}
   if test "${LANG}" == "cz"
@@ -303,23 +303,40 @@ F_TMP_ENTITIES_WITH_TYPEFLAGS="${DIR_OUTPUTS}/${F_TMP_ENTITIES_WITH_TYPEFLAGS}"
 F_TMP_ENTITIES_TAGGED_INFLECTIONS="${DIR_OUTPUTS}/${F_TMP_ENTITIES_TAGGED_INFLECTIONS}"
 
 # Skip generating some files if exist, because they are very time consumed
-if test "${CLEAN_CACHED}" = "true" || ! test -f "${F_ENTITIES_WITH_TYPEFLAGS}"; then
+if test "${CLEAN_CACHED}" = "true" || ! test -s "${F_ENTITIES_WITH_TYPEFLAGS}"; then
   python3 get_entities_with_typeflags.py -k "$KB" --lang ${LANG} | awk -F"\t" 'NF>2{key = $1 "\t" $2 "\t" $3; a[key] = a[key] (a[key] ? " " : "") $4;};END{for(i in a) print i "\t" a[i]}' > "${F_TMP_ENTITIES_WITH_TYPEFLAGS}"
-  retval_entities_with_typeflags="${PIPESTATUS[0]}"
+  RETVAL_ENTITIES_WITH_TYPEFLAGS="${PIPESTATUS[0]}"
+  if test "${RETVAL_ENTITIES_WITH_TYPEFLAGS}" -gt 0
+  then
+    >&2 echo "STOPPED due to some error occurs while getting entities with typeflags."
+    exit 10
+  fi
   mv "${F_TMP_ENTITIES_WITH_TYPEFLAGS}" "${F_ENTITIES_WITH_TYPEFLAGS}" 2>/dev/null
 fi
 
-if test "${retval_entities_with_typeflags}" -gt 0 || test -f "${F_ENTITIES_TAGGED_INFLECTIONS}" || test `stat -c %Y "${F_ENTITIES_TAGGED_INFLECTIONS}"` -lt `stat -c %Y "${F_ENTITIES_WITH_TYPEFLAGS}"` || test "${CLEAN_CACHED}" = true; then
+if ! test -s "${F_ENTITIES_WITH_TYPEFLAGS}"
+then
+  >&2 echo "STOPPED due to missing output file or empty output file of getting entities with typeflags."
+  exit 11
+fi
+
+if ! test -s "${F_ENTITIES_TAGGED_INFLECTIONS}" || test `stat -c %Y "${F_ENTITIES_TAGGED_INFLECTIONS}"` -lt `stat -c %Y "${F_ENTITIES_WITH_TYPEFLAGS}"` || test "${CLEAN_CACHED}" = true; then
   python3 get_entities_tagged_inflections.py -l ${LANG} -o "${F_TMP_ENTITIES_TAGGED_INFLECTIONS}" -i "${F_ENTITIES_WITH_TYPEFLAGS}"
   if test $? != 0
   then
-    >&2 echo "STOPPED due to some error occurs while getting tagged inflections of entities".
+    >&2 echo "STOPPED due to some error occurs while getting tagged inflections of entities."
     exit 20
   fi
   if test -f "${F_TMP_ENTITIES_TAGGED_INFLECTIONS}"
   then
     mv "${F_TMP_ENTITIES_TAGGED_INFLECTIONS}" "${F_ENTITIES_TAGGED_INFLECTIONS}"
   fi
+fi
+
+if ! test -s "${F_ENTITIES_TAGGED_INFLECTIONS}"
+then
+  >&2 echo "STOPPED due to missing output file or empty output file of getting tagged inflections of entities."
+  exit 21
 fi
 
 KB2NAMELIST_ARGS=()

@@ -102,7 +102,7 @@ if __name__ == "__main__":
     parser.add_argument('-k', '--kb_path', help = 'Path of Knowledge base.')
     parser.add_argument('-l', '--lang', help = 'Language to process.')
     args = parser.parse_args()
-    
+
     nationalities = NatLoader.load(args.lang).get_nationalities()
     kb_struct =  metrics_knowledge_base.KnowledgeBase(lang = args.lang, path_to_kb = args.kb_path)
     kb_struct.check_or_load_kb()
