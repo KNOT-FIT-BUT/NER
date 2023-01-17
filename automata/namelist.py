@@ -294,6 +294,7 @@ class Namelist(ABC):
 						self.add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1>. \g<2>", key_inflection), _value, _type_set) # Adolf Born -> A. Born
 						self.add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1>. \g<2>. \g<3>", key_inflection), _value, _type_set) # Peter Paul Rubens -> P. P. Rubens
 						self.add(regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1> \g<2>. \g<3>", key_inflection), _value, _type_set) # Peter Paul Rubens -> Peter P. Rubens
+						self.add(regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1> \g<3>", key_inflection), _value, _type_set) # Peter Paul Rubens -> Peter Rubens
 						self.add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1>. \g<2>. \g<3>. \g<4>", key_inflection), _value, _type_set) # Johann Gottfried Bernhard Bach -> J. G. B. Bach
 						self.add(regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+) (\p{Lu}\p{L}+)$", "\g<1>. \g<2>. \g<3> \g<4>", key_inflection), _value, _type_set) # Johann Gottfried Bernhard Bach -> J. G. Bernhard Bach
 						self.add(regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\g<1> \g<2>. \g<3>. \g<4>", key_inflection), _value, _type_set) # Johann Gottfried Bernhard Bach -> Johann G. B. Bach
