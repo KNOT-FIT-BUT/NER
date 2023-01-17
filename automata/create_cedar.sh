@@ -335,7 +335,7 @@ fi
 
 if ! test -s "${F_ENTITIES_TAGGED_INFLECTIONS}"
 then
-  if test "${LANG}" == "en"
+  if test "${LANG}" == "en" && ! test -f "${F_ENTITIES_TAGGED_INFLECTIONS}"
   then
     >&2 echo "WARNING: Missing output file or empty output file of getting tagged inflections of entities - skipping for language \"${LANG}\" (entities tagged inflection was not implemented for language \"${LANG}\")."
   else
