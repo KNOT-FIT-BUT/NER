@@ -3,7 +3,7 @@
 
 import os
 
-LANGS_ALLOWED = set(['cs'])
+LANGS_ALLOWED = set(['cs', 'en'])
 LANGS_MAP = {'cz': 'cs'}
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))

@@ -187,7 +187,6 @@ class Entity(ABC):
         self.senses = set(self.senses)
         self.candidates = list(self.senses)
 
-
         # entity doesn't have any candidates
         if not self.candidates:
             return
@@ -195,6 +194,8 @@ class Entity(ABC):
         elif len(self.candidates) == 1:
             self.set_preferred_sense(self.candidates[0])
             self.poorly_disambiguated = False
+        elif self.score == []:
+            self.set_preferred_sense(self.candidates[0])
 
         # the entity has to be disambiguated
         if not self.has_preferred_sense():
@@ -237,9 +238,10 @@ class Entity(ABC):
 
             if context_score > 0:
                 self.poorly_disambiguated = False
+
             self.static_score.append(static_score)
             self.context_score.append(context_score)
-            self.score.append(static_score + context_score)
+            self.score.append(static_score + context_score if static_score is not None else context_score)
 
         self.set_preferred_sense(self.candidates[self.score.index(max(self.score))])
 

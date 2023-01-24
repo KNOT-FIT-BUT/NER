@@ -18,7 +18,7 @@ class WordTypes(BaseWordTypes):
         "ho"  : "M",
         "ňom" : "M",
         "ním" : "M",
-        
+
         "ona" : "F",
         "jej" : "F",
         "nej" : "F",

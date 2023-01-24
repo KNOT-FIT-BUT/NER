@@ -24,5 +24,7 @@ class WordTypes(BaseWordTypes):
          "there" : "L",
          "where" : "L"
     }
-    
+
     PROPER_NOUNS_PREPS = set(['the', 'upon'])
+
+    VERBS = {" was ", " were ", " is "}

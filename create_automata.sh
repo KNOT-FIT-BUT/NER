@@ -114,6 +114,8 @@ DIR_WORKING=`dirname $(readlink -f "${0}")`
 
 cd "${DIR_WORKING}"
 
+DIR_INPUTS="${DIR_KB}/${LANG}"
+
 if test "${ATM_BASEDIR::1}" != "/"
 then
   ATM_BASEDIR="${DIR_WORKING}/${ATM_BASEDIR}"
@@ -140,7 +142,7 @@ else
 
   mkdir -p "${DIR_KB}"
 
-  KB_SRC="http://knot.fit.vutbr.cz/NAKI_CPK/NER_ML_inputs/KB/KB_${LANG}/new/KB.tsv"
+  KB_SRC="http://knot.fit.vutbr.cz/NER/stable/${LANG}/latest/KB.tsv"
   KB_FILE="${DIR_KB}/KB.tsv"
   KB_ETAG_FILE="${DIR_KB}/${KB_ETAG_FILE}"
   echo "CHECKING of newer version of KB..."
@@ -149,7 +151,7 @@ else
 
   if test -z "${KB_ETAG_REMOTE}"
   then
-    >&2 echo "ERROR: Network connection problem or unavailable CPK storage."
+    >&2 echo "ERROR: Network connection problem or unavailable NER storage."
     exit 11
   fi
 
@@ -169,6 +171,13 @@ else
     echo "KB IS UP TO DATE"
   fi
   echo
+fi
+
+mkdir -p "${DIR_INPUTS}"
+LANG_MEDIA_PATH="${DIR_INPUTS}/${LANG}_media.wc"
+if ! test -f "${LANG_MEDIA_PATH}" || ! test -s "${LANG_MEDIA_PATH}"
+then
+  wget "http://knot.fit.vutbr.cz/NER/inputs/automata/${LANG}/${LANG}_media.wc" -O "${LANG_MEDIA_PATH}"
 fi
 
 if test "${CLEAN_CACHED}" = true

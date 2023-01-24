@@ -21,7 +21,7 @@ class WordTypes(BaseWordTypes):
         "něm" : "M",
         "jím" : "M",
         "ním" : "M",
-        
+
         "ona" : "F",
         "jí"  : "F",
         "ní"  : "F",

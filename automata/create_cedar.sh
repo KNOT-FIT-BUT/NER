@@ -384,7 +384,7 @@ then
     tr 'A-Z' 'a-z' < "${F_STOPLIST_BASE}.var" >> "${F_STOPLIST_BASE}.all"
     sort -u "${F_STOPLIST_BASE}.all" > "${F_STOP_LIST}"
   else
-    >&2 echo "WARNING: Input stoplist file (${FIN_STOPLIST}) was not found => continue without stoplist."
+    >&2 echo "WARNING: Input stoplist file \"${FIN_STOPLIST}\" was not found => continue without stoplist."
   fi
 fi
 

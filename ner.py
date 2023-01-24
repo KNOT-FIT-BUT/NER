@@ -792,15 +792,15 @@ def main():
 
     # KB check and download - check if exists appropriate version of KB, over which automata were created; othervise download it
     print(f"Checking KB for the relevant required version \"{version_remote.get('KB')}\"...", file = sys.stderr)
-    with open(fpath_version, 'r') as f:
-        version_local = json.load(f)
-        KB_version = version_local.get('KB')
-        kb_fname = f'KB.tsv'
-        kb_local_path = os.path.join(arguments.indir, kb_fname)
-        kb_etag_path = os.path.join(arguments.indir, f'.{kb_fname}.etag')
-        kb_remote_path = f'{get_kb_basepath(lng)}/KB_{KB_version}/KB.tsv'
+    #with open(fpath_version, 'r') as f:
+    #    version_local = json.load(f)
+    #    KB_version = version_local.get('KB')
+    #    kb_fname = f'KB.tsv'
+    #    kb_local_path = os.path.join(arguments.indir, kb_fname)
+    #    kb_etag_path = os.path.join(arguments.indir, f'.{kb_fname}.etag')
+    #    kb_remote_path = f'{get_kb_basepath(lng)}/KB_{KB_version}/KB.tsv'
 
-        download_with_check(kb_remote_path, kb_etag_path, kb_local_path)
+    #    download_with_check(kb_remote_path, kb_etag_path, kb_local_path)
 
     # a list of frequent titles, degrees etc. (Mayor, King, Sir, ...)
     f_titles = os.path.abspath(os.path.join(arguments.indir, "freq_terms_filtred.all"))

@@ -244,6 +244,7 @@ class KnowledgeBase(ABC):
 		'''
 
 		result = []
+		col = 1
 		column_data = self.get_data_at(line, col)
 
 		while column_data != None:
@@ -259,6 +260,7 @@ class KnowledgeBase(ABC):
 		'''
 
 		result = []
+		col = 1
 		column_head = self.get_head_for(ent_type_set, col)
 
 		while column_head != None:
@@ -328,10 +330,13 @@ class KnowledgeBase(ABC):
 		try:
 			return float(result)
 		except:
+			print_dbg_en(f'Line "{line}" have non-integer type "{type(result)}" with content "{result}" for "CONFIDENCE" column.', delim="")
+			if result is None:
+				return
+
 			err_type_set = self.get_ent_type(line)
 			err_head = self.get_complete_head(err_type_set)
 			err_data = self.get_complete_data(line)
-			print_dbg_en("Line \"", line, "\" have non-integer type \"", type(result), "\" with content \"", result, "\"", delim="")
 			print_dbg_en("Dump head for type \"", err_type, "\" (cols=", len(err_head), "):\n\"\"\"\n", "\t".join(h.name for h in err_head), "\n\"\"\"", delim="")
 			print_dbg_en("Dump line \"", line, "\" (cols=", len(err_data), "):\n\"\"\"\n", "\t".join(err_data), "\n\"\"\"", delim="")
 			print_dbg_en("Version of connected KB (at \"", self.kb_shm_name, "\") is \"", self.version(), "\".", delim="")

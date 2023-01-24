@@ -334,8 +334,8 @@ def loadListFromFile(fname):
 
 def loadWordFreq():
 	try:
-		fname = os.path.join(args.indir, "cs_media.wc")
-		with open(fname) as frequency_file:
+		fname = os.path.join(args.indir, f"{args.lang}/{args.lang}_media.wc")
+		with open(fname, errors="ignore") as frequency_file:
 			dbg_f = open("freq.log", "w")
 			word_freq_total = dict()
 			for l in frequency_file:
