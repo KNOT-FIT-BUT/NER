@@ -315,7 +315,7 @@ class Context(object):
 
         for context_date in self.people_dates[par_index]:
             for org_date in org_dates:
-                if (context_date.find(org_date) > -1 or org_date.find(context_date) > -1) and org_date:
+                if context_date and org_date and (context_date.find(org_date) > -1 or org_date.find(context_date) > -1):
                     # the person has the date mentioned in this paragraph
                     org_date_score += 1
         if self.people_dates[par_index]:

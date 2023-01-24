@@ -231,10 +231,15 @@ class Entity(ABC):
                 context_score = context.country_percentile(self.kb.get_data_for(i, "COUNTRY"))
             elif 'person' in ent_type_set:
                 context_score = context.person_percentile(i)
-            elif 'organisation' in ent_type_set or 'event'in ent_type_set:
-                context_score = context.org_event_percentile(i, ent_type)
+            elif 'organization' in ent_type_set:
+                context_score = context.org_event_percentile(i, 'organization')
+            elif 'event' in ent_type_set:
+                context_score = context.org_event_percentile(i, 'event')
             else:
-                context_score = context.common_percentile(i, ent_type)
+                for ent_type in ent_type_set:
+                    if ent_type[:2] != "__" and ent_type != "__":
+                        context_score = context.common_percentile(i, ent_type)
+                        break
 
             if context_score > 0:
                 self.poorly_disambiguated = False
