@@ -178,6 +178,10 @@ LANG_MEDIA_PATH="${DIR_INPUTS}/${LANG}_media.wc"
 if ! test -f "${LANG_MEDIA_PATH}" || ! test -s "${LANG_MEDIA_PATH}"
 then
   wget "http://knot.fit.vutbr.cz/NER/inputs/automata/${LANG}/${LANG}_media.wc" -O "${LANG_MEDIA_PATH}"
+  if test "$?" -gt 0
+  then
+    >&2 echo "NER storage is not available or \"${LANG}_media.wc\" is not available for selected language."
+  fi
 fi
 
 if test "${CLEAN_CACHED}" = true
