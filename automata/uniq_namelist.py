@@ -25,10 +25,11 @@ limitations under the License.
 import argparse
 import sys
 from array import *
+from pathlib import Path
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--confidence", help="sorting line numbers by confidence score")
-parser.add_argument("-s", "--stop-list", help="file containing stop list")
+parser.add_argument("-s", "--stop-list", type=Path, help="file containing stop list")
 args = parser.parse_args()
 
 STOP_LIST = set()
@@ -36,7 +37,8 @@ STOP_LIST = set()
 try:
 	with open(args.stop_list) as stop_list:
 		STOP_LIST = stop_list.read().splitlines()
-except IOError:
+except IOError as err:
+	print(f"Uniq namelist - skipping error: {err}", file=sys.stderr)
 	pass
 
 if __name__ == "__main__":
@@ -110,4 +112,3 @@ if __name__ == "__main__":
 				print(k + "\t" + ";".join(ids))
 			elif "N" in ids:
 				print(k + "\t" + "N")
-

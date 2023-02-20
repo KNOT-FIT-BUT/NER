@@ -2,7 +2,6 @@
 
 ATM_BASEDIR="./automata"
 DIR_KB="${ATM_BASEDIR}/inputs"
-KB_ETAG_FILE=.KB.etag
 
 DEFAULT_LANG=cs
 LANG=
@@ -13,8 +12,7 @@ ATM_COMMON_ONLY=false
 DEPLOY_ARGS=()
 ATM_ARGS=()
 
-usage()
-{
+usage() {
   echo "Usage: ./create_automata.sh --lang=<language> [--common-only] [-c | --clean-cached] [-Q | --entity-id] [-k <KB path>] [-u [<login>]] [--dev] [--log]"
   echo ""
   echo -e "  -h --help"
@@ -27,6 +25,52 @@ usage()
   echo -e "  --dev                Development mode (upload to separate space to prevent forming a new production version of automata)"
   echo -e "  --log                Log to create_automata.sh.stdout, create_automata.sh.stderr and create_automata.sh.stdmix"
   echo ""
+}
+
+download_file() {
+  INPUT_SRC=$1
+  INPUT_TARGET=$2
+  FILE_IS_REQUIRED=$3
+
+  TARGET_DIR=`dirname ${INPUT_TARGET}`
+  TARGET_FILE=`basename ${INPUT_TARGET}`
+
+  mkdir -p "${TARGET_DIR}"
+
+  INPUT_SRC="http://knot.fit.vutbr.cz/NER/${INPUT_SRC}"
+  ETAG_INPUT_TARGET="${TARGET_DIR}/.${TARGET_FILE}.etag"
+
+  echo "CHECKING of newer version of \"${TARGET_FILE}\"..."
+  INPUT_ETAG_REMOTE=`wget -qS --spider --timeout=1 "${INPUT_SRC}" 2>&1 | grep -P "(?s)^\s+ETag" | grep -oP "(?<=\").*(?=\")"`
+  INPUT_ETAG_LOCAL=`cat "${ETAG_INPUT_TARGET}" 2>/dev/null`
+
+  if test -z "${INPUT_ETAG_REMOTE}"
+  then
+    >&2 echo "ERROR while updating \"${TARGET_FILE}\": Network connection problem or unavailable NER storage; or file is not available for selected language (at ${INPUT_SRC})."
+    if test "${FILE_IS_REQUIRED}" == false
+    then
+      return 0
+    else
+      exit 11
+    fi
+  fi
+
+  if test "${INPUT_ETAG_REMOTE}" != "${INPUT_ETAG_LOCAL}" || ! test -s "${INPUT_TARGET}"
+  then
+    echo "DOWNLOADING new version of \"${TARGET_FILE}\"..."
+    wget "${INPUT_SRC}" -O "${INPUT_TARGET}" 2>/dev/null
+    if test ! $?
+    then
+      >&2 "ERROR while downloading new version of \"${TARGET_FILE}\""
+      exit 12
+    fi
+
+    echo -n "${INPUT_ETAG_REMOTE}" > "${ETAG_INPUT_TARGET}"
+    echo "Updating of \"${TARGET_FILE}\" WAS SUCCESSFULLY FINISHED"
+  else
+    echo "File \"${TARGET_FILE}\" IS UP TO DATE"
+  fi
+  echo
 }
 
 
@@ -140,49 +184,18 @@ else
     DIR_KB="${DIR_WORKING}/${DIR_KB}"
   fi
 
-  mkdir -p "${DIR_KB}"
-
-  KB_SRC="http://knot.fit.vutbr.cz/NER/stable/${LANG}/latest/KB.tsv"
-  KB_FILE="${DIR_KB}/KB.tsv"
-  KB_ETAG_FILE="${DIR_KB}/${KB_ETAG_FILE}"
-  echo "CHECKING of newer version of KB..."
-  KB_ETAG_REMOTE=`wget -qS --spider ${KB_SRC} 2>&1 | grep -P "(?s)^\s+ETag" | grep -oP "(?<=\").*(?=\")"`
-  KB_ETAG_LOCAL=`cat "${KB_ETAG_FILE}" 2>/dev/null`
-
-  if test -z "${KB_ETAG_REMOTE}"
-  then
-    >&2 echo "ERROR: Network connection problem or unavailable NER storage."
-    exit 11
-  fi
-
-  if test "${KB_ETAG_REMOTE}" != "${KB_ETAG_LOCAL}" || ! test -s "${KB_FILE}"
-  then
-    echo "DOWNLOADING new version of KB..."
-    wget "${KB_SRC}" -O "${KB_FILE}" 2>/dev/null
-    if test ! $?
-    then
-      >&2 "ERROR while downloading new version of KB"
-      exit 12
-    fi
-
-    echo -n "${KB_ETAG_REMOTE}" > ${KB_ETAG_FILE}
-    echo "KB UPDATE WAS SUCCESSFULLY FINISHED"
-  else
-    echo "KB IS UP TO DATE"
-  fi
-  echo
+  download_file "stable/${LANG}/latest/KB.tsv" "${DIR_KB}/KB.tsv" true
 fi
 
+echo "DOWNLOADING other input files..."
 mkdir -p "${DIR_INPUTS}"
-LANG_MEDIA_PATH="${DIR_INPUTS}/${LANG}_media.wc"
-if ! test -f "${LANG_MEDIA_PATH}" || ! test -s "${LANG_MEDIA_PATH}"
-then
-  wget "http://knot.fit.vutbr.cz/NER/inputs/automata/${LANG}/${LANG}_media.wc" -O "${LANG_MEDIA_PATH}"
-  if test "$?" -gt 0
-  then
-    >&2 echo "NER storage is not available or \"${LANG}_media.wc\" is not available for selected language."
-  fi
-fi
+
+FILES_TO_DOWNLOAD="${LANG}_media.wc ${LANG}_stop_list.lst ${LANG}_allow_list.lst ${LANG}_freq_terms.lst"
+for INFILE in $FILES_TO_DOWNLOAD
+do
+  FILE_PATH="${DIR_INPUTS}/${INFILE}"
+  download_file "inputs/automata/${LANG}/${INFILE}" "${FILE_PATH}" false
+done
 
 if test "${CLEAN_CACHED}" = true
 then
@@ -199,7 +212,6 @@ if test "${ATM_COMMON_ONLY}" != true
 then
   ATM_ARGS+=("-a")
 fi
-
 
 echo "LAUNCHING automata creation"
 

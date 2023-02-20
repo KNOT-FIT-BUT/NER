@@ -6,6 +6,7 @@ import regex
 import sys
 
 from abc import ABC, abstractmethod
+from typing import List, Set
 
 import metrics_knowledge_base
 
@@ -145,9 +146,9 @@ class Namelist(ABC):
 				self.entry2dict(self.getNonAccentKey(_key, 'other'), _value)
 		else:
 			self.entry2dict(_key, _value)
-				
 
-	def addVariants(self, _key, _nametype, _value, _type_set, _fields):
+
+	def addVariants(self, _key: str, _nametype: str, _value: str, _type_set: Set[str], _fields: List[str]) -> None:
 		"""
 		Adds the name into the dictionary. For each name it adds also an alternative without accent.
 

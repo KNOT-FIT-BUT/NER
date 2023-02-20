@@ -74,10 +74,18 @@ getGitBasedVersion()
 }
 
 
+run() {
+  >&2 echo -e "[`date \+\"%F %T\"`]\tRunning command: ${@}"
+  eval "${@}"
+}
+
+
 makeAutomata() {
   F_NAMELIST=$1
   F_AUTOMATA=$2
-  ../figa/figav1.0 -d "${F_NAMELIST}" -n -w "${F_AUTOMATA}"
+  F_NAMELIST_FILTERED="${F_NAMELIST}.filtered"
+  ./filter_namelist.sh "${KB}" "${F_NAMELIST}" > "${F_NAMELIST_FILTERED}"
+  ../figa/figav1.0 -d "${F_NAMELIST_FILTERED}" -n -w "${F_AUTOMATA}"
 }
 
 
@@ -371,18 +379,18 @@ fi
 #=====================================================================
 # uprava stoplistu (kapitalizace a razeni)
 F_STOPLIST_BASE="${DIR_OUTPUTS}/stop_list"
-F_STOP_LIST="${F_STOPLIST_BASE}.all.sorted"
+FOUT_STOPLIST="${F_STOPLIST_BASE}.all.sorted"
 if $ATM_ALL || ! $ATM_URI
 then
-  FIN_STOPLIST="${DIR_INPUTS}/${LANG}/stoplist.txt"
+  FIN_STOPLIST="${DIR_INPUTS}/${LANG}/${LANG}_stop_list.lst"
   if test -f "${FIN_STOPLIST}"
   then
-    python get_morphological_forms.py < "${FIN_STOPLIST}" | sort -u > "${F_STOPLIST_BASE}.var"
+    python3 get_morphological_forms.py < "${FIN_STOPLIST}" | sort -u > "${F_STOPLIST_BASE}.var"
     cp "${F_STOPLIST_BASE}.var" "${F_STOPLIST_BASE}.all"
     sed -e 's/\b\(.\)/\u\1/g' < "${F_STOPLIST_BASE}.var" >> "${F_STOPLIST_BASE}.all"
     tr 'a-z' 'A-Z' < "${F_STOPLIST_BASE}.var" >> "${F_STOPLIST_BASE}.all"
     tr 'A-Z' 'a-z' < "${F_STOPLIST_BASE}.var" >> "${F_STOPLIST_BASE}.all"
-    sort -u "${F_STOPLIST_BASE}.all" > "${F_STOP_LIST}"
+    sort -u "${F_STOPLIST_BASE}.all" > "${FOUT_STOPLIST}"
   else
     >&2 echo "WARNING: Input stoplist file \"${FIN_STOPLIST}\" was not found => continue without stoplist."
   fi
@@ -404,15 +412,15 @@ then
   F_INTEXT_BASE="${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}intext"
   if $ATM_COMMON
   then
-    eval "${SCRIPT_KB2NAMELIST}" | tr -s ' ' > "${F_INTEXT_BASE}"
+    run "${SCRIPT_KB2NAMELIST} | tr -s ' ' > \"${F_INTEXT_BASE}\""
   fi
   if $ATM_LOWERCASE
   then
-    eval "${SCRIPT_KB2NAMELIST} -d" | tr -s ' ' > "${F_INTEXT_BASE}_lower"
+    run "${SCRIPT_KB2NAMELIST} -d | tr -s ' ' > \"${F_INTEXT_BASE}_lower\""
   fi
   if $ATM_URI
   then
-    eval "${SCRIPT_KB2NAMELIST} -u" > "${F_INTEXT_BASE}_uri"
+    run "${SCRIPT_KB2NAMELIST} -u > \"${F_INTEXT_BASE}_uri\""
   fi
 
   #=====================================================================
@@ -434,17 +442,17 @@ then
 
     for fname_suffix in "${fname_suffixes[@]}"
     do
-      CMD="python uniq_namelist.py -s \"${STOP_LIST}\""
+      CMD="python3 uniq_namelist.py -s \"${FOUT_STOPLIST}\""
       if test -f "${F_CONFIDENCE}"
       then
         CMD+=" -c ${F_CONFIDENCE}"
       fi
-      ${CMD} < "${F_INTEXT_BASE}${fname_suffix}" > "${F_NAMELIST_BASE}${fname_suffix}"
+      run "${CMD} < \"${F_INTEXT_BASE}${fname_suffix}\" > \"${F_NAMELIST_BASE}${fname_suffix}\""
     done
   fi
   if $ATM_URI
   then
-    python uniq_namelist.py -s "${STOP_LIST}" < "${F_INTEXT_BASE}_uri" > "${F_NAMELIST_BASE}_uri"
+    python3 uniq_namelist.py -s "${FOUT_STOPLIST}" < "${F_INTEXT_BASE}_uri" > "${F_NAMELIST_BASE}_uri"
   fi
 
   #=====================================================================
@@ -469,7 +477,7 @@ fi
 if ${ATM_AUTOCOMPLETE}
 then
   F_INTEXT_AUTO="${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}intext_auto"
-  eval "${SCRIPT_KB2NAMELIST} -a" | tr -s ' ' | grep -v -e "[^;]N" > "${F_INTEXT_AUTO}"
+  run "${SCRIPT_KB2NAMELIST} -a | tr -s ' ' | grep -v -e \"[^;]N\" > \"${F_INTEXT_AUTO}\""
   cat "${F_INTEXT_AUTO}" | grep -P "^person:" | sed -r 's/^person:\t//' > "${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}p_intext"
   cat "${F_INTEXT_AUTO}" | grep -P "^geographical:" | sed -r 's/^geographical:\t//' > "${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}l_intext"
   cut -f2- "${F_INTEXT_AUTO}" > "${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}x_intext"
@@ -481,12 +489,12 @@ then
   # skript, ktery slouci duplicty (cisla radku do jednoho) a vytvori pro prislusny soubor konecny automat
   for atm_type in "${ATM_TYPES_AUTOCOMPLETE[@]}"
   do
-    CMD="python uniq_namelist.py -s \"${STOP_LIST}\""
+    CMD="python3 uniq_namelist.py -s \"${FOUT_STOPLIST}\""
     if test -f "${F_CONFIDENCE}"
     then
       CMD+=" -c ${F_CONFIDENCE}"
     fi
-    ${CMD} < "${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}${atm_type}_intext" > "${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}${atm_type}_namelist"
+    run "${CMD} < \"${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}${atm_type}_intext\" > \"${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}${atm_type}_namelist\""
     for ext in "${EXTS[@]}"
     do
       makeAutomata "${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}${atm_type}_namelist" "${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}${atm_type}_automata${ext}"

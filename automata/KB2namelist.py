@@ -34,6 +34,7 @@ import regex
 
 from multiprocessing import Pool
 from pandas import to_numeric
+from typing import List, Set
 
 import metrics_knowledge_base
 
@@ -263,7 +264,7 @@ def add_line_of_type_to_dictionary(_fields, _line_num, _type_set):
 			transformed_alias = [alias, ' '.join(word[0].upper() + word[1:] if len(word) > 1 else word for word in alias.split())] # title also destroys other uppercase letters in word to lowercase
 
 		for ta in transformed_alias:
-			namelist.addVariants(ta, ntype, _line_num, _type_set, _fields)
+			add_to_namelist(_key=ta, _nametype=ntype, _value=_line_num, _type_set=_type_set, _fields=_fields)
 
 
 def process_person_common(person_type, _fields, _line_num, confidence_threshold):
@@ -278,9 +279,7 @@ def process_person_common(person_type, _fields, _line_num, confidence_threshold)
 
 	processed_surnames = set()
 	for n, t in aliases.items():
-		length = n.count(" ") + 1
-		if length >= 2 or is_capital_dominant(n):
-			namelist.addVariants(n, t, _line_num, person_type, _fields)
+		add_to_namelist(_key=n, _nametype=t, _value=_line_num, _type_set=person_type, _fields=_fields)
 
 	if confidence is not None and confidence >= confidence_threshold:
 		surname_match = SURNAME_MATCH.search(name)
@@ -289,9 +288,12 @@ def process_person_common(person_type, _fields, _line_num, confidence_threshold)
 			surname = surname_match.group(0)
 			if surname not in processed_surnames and surname != name:
 				processed_surnames.add(surname)
-				if is_capital_dominant(surname):
-					namelist.addVariants(surname, t, _line_num, person_type, _fields)
+				add_to_namelist(_key=surname, _nametype=t, _value=_line_num, _type_set=person_type, _fields=_fields)
 
+def add_to_namelist(_key: str, _nametype: str, _value: str, _type_set: Set[str], _fields: List[str]) -> None:
+	length = _key.count(" ") + 1
+	if length > 1 or is_capital_dominant(name=_key):
+		namelist.addVariants(_key=_key, _nametype=_nametype, _value=_value, _type_set=_type_set, _fields=_fields)
 
 def is_capital_dominant(name):
 	return (name in word_freq and word_freq[name] > 0.5) or ((name[:1].lower() + name[1:]) not in word_freq)
@@ -323,9 +325,9 @@ def getLineColumns(l):
 	return l.strip('\n').split("\t")
 
 
-def loadListFromFile(fname):
+def loadListFromFile(fname: str, use_lang_prefix: bool=True) -> List:
 	try:
-		with open(os.path.join(args.indir, fname)) as fh:
+		with open(os.path.join(args.indir, args.lang, f"{args.lang}_{fname}") if use_lang_prefix else fname) as fh:
 			return fh.read().splitlines()
 	except FileNotFoundError:
 		print('WARNING: File "{}" was not found => continue with empty list.'.format(fname), file = sys.stderr, flush = True)
@@ -335,8 +337,7 @@ def loadListFromFile(fname):
 def loadWordFreq():
 	try:
 		fname = os.path.join(args.indir, f"{args.lang}/{args.lang}_media.wc")
-		with open(fname, errors="ignore") as frequency_file:
-			dbg_f = open("freq.log", "w")
+		with open(fname, errors="ignore") as frequency_file, open(f"{args.outdir}/freq.log", "w") as dbg_f:
 			word_freq_total = dict()
 			for l in frequency_file:
 				word, freq = l.rstrip().split("\t") # must be rstrip() only due to space as a key in input file
@@ -362,10 +363,10 @@ if __name__ == "__main__":
 
 	else:
 		# loading the list of titles, degrees etc. (earl, sir, king, baron, ...)
-		namelist.setFreqTerms(loadListFromFile("freq_terms.lst"))
+		namelist.setFreqTerms(loadListFromFile(fname="freq_terms.lst"))
 
 		# loading the allow list (these names will be definitely in the namelist)
-		namelist.setAllowed(loadListFromFile("allow_list.lst"))
+		namelist.setAllowed(loadListFromFile(fname="allow_list.lst"))
 
 		# loading the list of first names
 		#lst_firstnames = loadListFromFile("firstnames.lst")
