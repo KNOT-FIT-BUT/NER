@@ -119,7 +119,7 @@ class KnowledgeBase:
 		PARSER_FIRST = re.compile(r"""(?ux)
 			^
 			<(?P<TYPE>[^>]+)>
-			""" + PARSER_PATTERN + r"""
+			(""" + PARSER_PATTERN + r""")?
 			$
 		""")
 
@@ -147,9 +147,10 @@ class KnowledgeBase:
 				else:
 					splitted = PARSER_OTHER.search(plain_column)
 
-				col_name = splitted.group("NAME")
-				headKB[head_type][col_name] = col_num
-				print_dbg(head_type, " -> ", col_name, ": ", col_num, delim="")
+				if splitted is not None: # This type has no defined columns
+					col_name = splitted.group("NAME")
+					headKB[head_type][col_name] = col_num
+					print_dbg(head_type, " -> ", col_name, ": ", col_num, delim="")
 
 				if col_name == "TYPE":
 					if ent_type_col is None:
