@@ -69,7 +69,7 @@ if __name__ == "__main__":
 
 			try:
 				# converts string to integer
-				ids = map(int, dictionary[k])
+				ids = list(map(int, dictionary[k]))
 			except ValueError:
 				# there is a fragment (value "N")
 				ids = list(dictionary[k])
@@ -94,7 +94,7 @@ if __name__ == "__main__":
 				sorted_ids.append(line_number)
 
 			# converts id to string
-			sorted_ids = map(str, sorted_ids)
+			sorted_ids = list(map(str, sorted_ids))
 
 			if N_removed:
 				# adding deleted value "N"
