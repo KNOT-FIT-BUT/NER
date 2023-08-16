@@ -90,8 +90,8 @@ class Namelist(ABC):
 
 
 	def reUnwantedMatch(self):
-		unwanted_match = set([',', '[0-9]']) | self.reEscapeSet(self.getSaintVariants()) | self.reEscapeSet(self.getLangUnwantedMatch())
-		return regex.compile(r'({})'.format('|'.join(unwanted_match)))
+		unwanted_match = self.reEscapeSet(self.getSaintVariants()) | self.reEscapeSet(self.getLangUnwantedMatch())
+		return regex.compile(r'(,|[0-9]|(^|\s)({})(\s|$))'.format('|'.join(unwanted_match)))
 
 
 	def entry2dict(self, _key, _value):
