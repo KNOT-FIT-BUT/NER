@@ -223,3 +223,5 @@ then
 fi
 
 cd "${DIR_LAUNCHED}"
+
+echo "===== FINISHED ====="

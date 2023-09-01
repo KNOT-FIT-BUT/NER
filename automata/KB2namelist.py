@@ -293,7 +293,7 @@ def process_person_common(person_type, _fields, _line_num, confidence_threshold)
 def add_to_namelist(_key: str, _nametype: str, _value: str, _type_set: Set[str], _fields: List[str]) -> None:
 	length = _key.count(" ") + 1
 	if length > 1 or is_capital_dominant(name=_key):
-		namelist.addVariants(_key=_key, _nametype=_nametype, _value=_value, _type_set=_type_set, _fields=_fields)
+		namelist.add_variants(_key=_key, _nametype=_nametype, _value=_value, _type_set=_type_set, _fields=_fields)
 
 def is_capital_dominant(name):
 	return (name in word_freq and word_freq[name] > 0.5) or ((name[:1].lower() + name[1:]) not in word_freq)
@@ -405,4 +405,4 @@ if __name__ == "__main__":
 		#gc.collect()
 
 	# printing the output
-	namelist.getTsv(include_extra = True) #not args.uri)
+	namelist.get_tsv(include_extra = True) #not args.uri)
