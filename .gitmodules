@@ -5,4 +5,3 @@
 [submodule "libs/namegen"]
 	path = libs/namegen
 	url = ../namegen.git
-        branch = devel

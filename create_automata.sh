@@ -142,15 +142,21 @@ else
   fi
 fi
 
-
 if $LOG; then
-  rm -f create_automata.sh.fifo.stdout create_automata.sh.fifo.stderr create_automata.sh.fifo.stdmix
-  mkfifo create_automata.sh.fifo.stdout create_automata.sh.fifo.stderr create_automata.sh.fifo.stdmix
+  KB_VERSION=`head -n 1 "${KB_FILE}" | sed -E 's/^VERSION=//' | tr -d '\n\r '`
+  LOG_VERSION=${USER}
+  if test "${KB_VERSION}" != ""
+  then
+    LOG_VERSION="${LOG_VERSION}.${KB_VERSION}"
+  fi
 
-  cat create_automata.sh.fifo.stdout | tee create_automata.sh.stdout > create_automata.sh.fifo.stdmix &
-  cat create_automata.sh.fifo.stderr | tee create_automata.sh.stderr > create_automata.sh.fifo.stdmix &
-  cat create_automata.sh.fifo.stdmix > create_automata.sh.stdmix &
-  exec > create_automata.sh.fifo.stdout 2> create_automata.sh.fifo.stderr
+  rm -f create_automata.sh.fifo.${LOG_VERSION}.stdout create_automata.sh.fifo.${LOG_VERSION}.stderr create_automata.sh.fifo.${LOG_VERSION}.stdmix
+  mkfifo create_automata.sh.fifo.${LOG_VERSION}.stdout create_automata.sh.fifo.${LOG_VERSION}.stderr create_automata.sh.fifo.${LOG_VERSION}.stdmix
+
+  cat create_automata.sh.fifo.${LOG_VERSION}.stdout | tee create_automata.sh.${LOG_VERSION}.stdout > create_automata.sh.fifo.${LOG_VERSION}.stdmix &
+  cat create_automata.sh.fifo.${LOG_VERSION}.stderr | tee create_automata.sh.${LOG_VERSION}.stderr > create_automata.sh.fifo.${LOG_VERSION}.stdmix &
+  cat create_automata.sh.fifo.${LOG_VERSION}.stdmix > create_automata.sh.${LOG_VERSION}.stdmix &
+  exec > create_automata.sh.fifo.${LOG_VERSION}.stdout 2> create_automata.sh.fifo.${LOG_VERSION}.stderr
 fi
 
 DIR_LAUNCHED=$PWD

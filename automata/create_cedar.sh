@@ -6,7 +6,7 @@
 export LC_ALL="C.UTF-8"
 
 # saved values
-KB_WORKDIR=$PWD
+OLD_WORKDIR=$PWD
 DIR_LAUNCHED=`dirname "${0}"`
 
 # default values
@@ -71,6 +71,20 @@ getGitBasedVersion()
   cd ${_OLDPWD}
 
   echo $VERSION
+}
+
+
+getFullPath()
+{
+  FILEPATH=$1
+  DIR=$2
+
+  if test "${FILEPATH::1}" == "/"
+  then
+    echo $FILEPATH
+  else
+    echo "${DIR}/${FILEPATH}"
+  fi
 }
 
 
@@ -196,14 +210,14 @@ while [ "$1" != "" ]; do
               VALUE=$2
               shift
             fi
-            DIR_INPUTS=$VALUE
+            DIR_INPUTS=`getFullPath "${VALUE}" "${DIR_LAUNCHED}"`
             ;;
         -O | --outdir)
             if [ "$PARAM" = "-O" ]; then
               VALUE=$2
               shift
             fi
-            DIR_OUTPUTS=$VALUE
+            DIR_OUTPUTS=`getFullPath "${VALUE}" "${DIR_LAUNCHED}"`
             ;;
         -Q | --entity-id)
             POINTER_AS_ENTITY_ID=true
@@ -255,26 +269,23 @@ if [ ! -f "$KB" ]; then
   exit 3
 fi
 
-DIR_OUTPUTS="${DIR_OUTPUTS}/${LANG}"
-
 #=====================================================================
 # zmena spousteci cesty na tu, ve ktere se nachazi create_cedar.sh
 cd "${DIR_LAUNCHED}"
-# ale soucasne je treba zmenit cestu ke KB, jinak bychom problem posunuli jinam
-if [[ "${KB:0:1}" != "/" ]]
-then
-  KB="${KB_WORKDIR}/${KB}"
-fi
+# ale soucasne je treba zmenit cestu ke KB (pokud neni absolutni), jinak bychom problem posunuli jinam
+KB=`getFullPath "${KB}" "${OLD_WORKDIR}"`
 
 # cesta pro import modulů do Python skriptů
 export PYTHONPATH=../../:$PYTHONPATH
 
 make -C ..
 
+KB_VERSION=`head -n 1 "${KB}" | sed -E 's/^VERSION=//' | tr -d '\n\r '`
+DIR_OUTPUTS="${DIR_OUTPUTS}/${LANG}/${KB_VERSION}_${USER}"
+
 mkdir -p "${DIR_OUTPUTS}"
 
 VERSION_FILE="${DIR_OUTPUTS}/VERSIONS.json"
-KB_VERSION=`head -n 1 "${KB}" | sed -E 's/^VERSION=//' | tr -d '\n\r '`
 echo "---------------------------------"
 echo "KB version: ${KB_VERSION}"
 
