@@ -10,7 +10,7 @@ OLD_WORKDIR=$PWD
 DIR_LAUNCHED=`dirname "${0}"`
 
 # default values
-KB="inputs/KB.tsv"
+KB="../inputs/KB.tsv"
 KB_GIVEN=false
 ATM_LOWERCASE=false
 ATM_URI=false
@@ -19,8 +19,8 @@ DARTS=false
 ATM_ALL=false
 ATM_COMMON=true
 ATM_AUTOCOMPLETE=false
-DIR_INPUTS=inputs
-DIR_OUTPUTS=outputs
+DIR_INPUTS=../inputs
+DIR_OUTPUTS=../outputs
 LANG=
 ATM_TYPES_AUTOCOMPLETE=(p l x)
 CLEAN_CACHED=false
@@ -99,7 +99,7 @@ makeAutomata() {
   F_AUTOMATA=$2
   F_NAMELIST_FILTERED="${F_NAMELIST}.filtered"
   ./filter_namelist.sh "${KB}" "${F_NAMELIST}" > "${F_NAMELIST_FILTERED}"
-  ../figa/figav1.0 -d "${F_NAMELIST_FILTERED}" -n -w "${F_AUTOMATA}"
+  ../../figa/figav1.0 -d "${F_NAMELIST_FILTERED}" -n -w "${F_AUTOMATA}"
 }
 
 
@@ -291,7 +291,7 @@ echo "KB version: ${KB_VERSION}"
 
 if test "${LANG}" == "cs"
 then
-  NAMEGEN_VERSION=`getGitBasedVersion "../libs/namegen/"`
+  NAMEGEN_VERSION=`getGitBasedVersion "../../libs/namegen/"`
   echo "NAMEGEN version: ${NAMEGEN_VERSION}"
 fi
 

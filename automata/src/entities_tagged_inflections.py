@@ -50,7 +50,7 @@ class EntitiesTaggedInflections(ABC):
 
 	def _process_namegen(self) -> str:
 		dir_script = os.path.join(os.getcwd(), os.path.dirname(__file__))
-		return f'python3 {dir_script}/../libs/namegen/namegen.py --def-lang {self.lang} --include-no-morphs --error-words {self.outdir}/ma_unknown_words.lntrf -o "{self.outfile}" "{self.infile}"'
+		return f'python3 {dir_script}/../../libs/namegen/namegen.py --def-lang {self.lang} --include-no-morphs --error-words {self.outdir}/ma_unknown_words.lntrf -o "{self.outfile}" "{self.infile}"'
 
 	def _process_extra_namegen(self) -> None:
 		for type_flag, fn_label in {'G': 'given_names', 'L': 'locations', 'S': 'surnames'}.items():

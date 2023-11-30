@@ -25,7 +25,7 @@ limitations under the License.
 
 import os
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 import re
 import numpy
@@ -33,7 +33,10 @@ from enum import Enum
 from orderedset import OrderedSet
 
 # for debugging purposes only
-from configs import LANG_DEFAULT
+try:
+    from configs import LANG_DEFAULT
+except ImportError:
+    from .configs import LANG_DEFAULT
 from libs import debug
 debug.DEBUG_EN = False
 from libs.debug import print_dbg, print_dbg_en

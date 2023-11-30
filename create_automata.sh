@@ -221,11 +221,11 @@ fi
 
 echo "LAUNCHING automata creation"
 
-${ATM_BASEDIR}/create_cedar.sh --lang=${LANG} -k "${KB_FILE}" "${ATM_ARGS[@]}"
+${ATM_BASEDIR}/src/create_cedar.sh --lang=${LANG} -k "${KB_FILE}" "${ATM_ARGS[@]}"
 
 if test "${DEPLOY}" == "true"
 then
-  ${ATM_BASEDIR}/deploy.sh -u ${DEPLOY_USER} "${DEPLOY_ARGS[@]}"
+  ${ATM_BASEDIR}/src/deploy.sh -u ${DEPLOY_USER} "${DEPLOY_ARGS[@]}"
 fi
 
 cd "${DIR_LAUNCHED}"
