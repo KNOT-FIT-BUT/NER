@@ -35,7 +35,7 @@ import regex
 
 from multiprocessing import Pool
 from pandas import to_numeric
-from typing import List, Set
+from typing import List, Set, Union
 
 try:
     import metrics_knowledge_base
@@ -67,6 +67,11 @@ CACHED_INFLECTEDNAMES = "cached_inflectednames.pkl"
 SURNAME_MATCH = regex.compile(
     r"(((?<=^)|(?<=[ ]))(?:(?:da|von)(?:#[^ ]+)? )?((?:\p{Lu}\p{Ll}*(?:#[^- ]+)?-)?(?:\p{Lu}\p{Ll}+(?:#[^- ]+)?))$)"
 )
+
+# dashes variants: 0x2D (0045), 0x96 (0150), 0x97 (0151), 0xAD (0173)
+DASHES = "-–—­"
+RE_DASHES = regex.escape(DASHES)
+RE_DASHES_VARIANTS = r"[%s]" % DASHES
 
 kb_struct = None
 namelist = None
@@ -147,7 +152,8 @@ def get_subnames_from_parts(subname_parts):
     subnames = set()
     subname_all = ""
     for subname_part in subname_parts:
-        subname_part = regex.sub(r"#[A-Za-z0-9]+E?( |-|–|$)", "\g<1>", subname_part)
+        #                                             0x29, 0x96, 0x97, 0xAD
+        subname_part = regex.sub(r"#[A-Za-z0-9]+E?( |%s|$)" % RE_DASHES_VARIANTS, r"\g<1>", subname_part)
         subnames.add(subname_part)
         if subname_all:
             subname_part = " " + subname_part
@@ -189,7 +195,15 @@ def build_name_variant(
 
         if ent_flag in ["F", "M"]:
             match_one_firstname_surnames = regex.match(
-                "^([^#]+#[G]E?(?: |-))(?:[^#]+#[G]E?(?: |-))+((?:[^# -]+#SE?(?: \p{L}+#[L78]E?)*(?: |-|$))+)",
+                r"^([^#]+#[G]E?(?: |"
+                + RE_DASHES_VARIANTS
+                + r"))(?:[^#]+#[G]E?(?: |"
+                + RE_DASHES_VARIANTS
+                + r"))+((?:[^# "
+                + RE_DASHES
+                + r"]+#SE?(?: \p{L}+#[L78]E?)*(?: |"
+                + RE_DASHES_VARIANTS
+                + r"|$))+)",
                 stacked_name,
             )
             if match_one_firstname_surnames:
@@ -201,7 +215,17 @@ def build_name_variant(
 
             if is_basic_form:
                 firstnames_surnames = regex.match(
-                    "^((?:[^#]+#[G]E?(?: |-))+)((?:[^# -]+#SE?(?: |-|$))+)((?:[^# -]+#[L78]E?(?: |-|$))*)",
+                    r"^((?:[^#]+#[G]E?(?: |"
+                    + RE_DASHES_VARIANTS
+                    + r"))+)((?:[^# "
+                    + RE_DASHES
+                    + r"]+#SE?(?: |"
+                    + RE_DASHES_VARIANTS
+                    + r"|$))+)((?:[^# "
+                    + RE_DASHES
+                    + r"]+#[L78]E?(?: |"
+                    + RE_DASHES_VARIANTS
+                    + r"|$))*)",
                     stacked_name,
                 )
                 if firstnames_surnames:
@@ -236,8 +260,16 @@ def build_name_variant(
             subnames = persons.get_normalized_subnames(subnames)
         if strip_nameflags:
             for n in new_name_inflections:
+                name_stripped = regex.sub(
+	            r"#[A-Za-z0-9\.]+E?(?="
+	            + RE_DASHES_VARIANTS
+	            + r"|,| |\u200b|$)",
+	            "",
+	            n
+	        )
+                name_stripped = regex.sub(r"\u200b", "", name_stripped)
                 name_inflections.add(
-                    regex.sub(r"#[A-Za-z0-9]+E?(?=-|,| |$)", "", n)
+                    name_stripped
                 )
         else:
             name_inflections |= new_name_inflections
@@ -284,14 +316,21 @@ def get_KB_names_ntypes_for(_fields):
     return names
 
 
-def combine_dashed_parts(dashed_parts: List, i_part: int = 0, stacked_name: str = "") -> Set:
+def combine_special_separated_parts(special_parts: List[str], special_separators: Union[str, List[str]], i_part: int = 0, stacked_name: str = "") -> Set:
     output = set()
-    if i_part < len(dashed_parts):
-        for part in dashed_parts[i_part]:
-            output.update(combine_dashed_parts(dashed_parts=dashed_parts, i_part=i_part+1, stacked_name=f"{stacked_name}-{part}"))
+    if i_part < len(special_parts):
+        for part in special_parts[i_part]:
+            output.update(combine_special_separated_parts(
+                special_parts=special_parts,
+                special_separators=special_separators,
+                i_part=i_part+1,
+                stacked_name=f"{stacked_name}{part}{special_separators if isinstance(special_separators, str) else special_separators[i_part]}"
+            ))
         return output
     else:
-        return set([stacked_name.lstrip("-")])
+        if isinstance(special_separators, str):
+            stacked_name = stacked_name.rstrip(special_separators)
+        return set([stacked_name])
 
 
 def process_name_inflections(line, strip_nameflags=True):
@@ -309,21 +348,42 @@ def process_name_inflections(line, strip_nameflags=True):
         for i_infl_part, infl_part in enumerate(infl.split(" ")):
             inflection_parts[i_infl_part] = set()
 
-            dashed_parts = {}
             part_variant_suffix = ""
-            # for names like Sloanu#/Sloanovi#,
+            # for comma-contained names like ...Sloanu#../Sloanovi#..,...
             if infl_part[-1] == ",":
                 part_variant_suffix = infl_part[-1]
                 infl_part = infl_part[:-1]
- 
-            # for names like Adamovi/Adamu-Philippovi/Philippu...
-            for i_dashed_part, infl_dashed_part in enumerate(infl_part.split("-")):
-                dashed_parts[i_dashed_part] = set()
-                for infl_part_variant in infl_dashed_part.split("/"):
-                    dashed_parts[i_dashed_part].add(
-                        regex.sub(r"(\p{L}*)(\[[^\]]+\])?", "\g<1>", infl_part_variant) + part_variant_suffix
-                    )
-            inflection_parts[i_infl_part].update(combine_dashed_parts(dashed_parts))
+
+            is_spec_char = False
+            spec_char = "\u200b"
+            if spec_char in infl_part:
+                is_spec_char = True
+                zerowidth_parts = {}
+                for i_zw_part, infl_zw_part in enumerate(infl_part.split(spec_char)):
+                    zerowidth_parts[i_zw_part] = _separate_part_variants(name_part=infl_zw_part, part_variant_suffix=part_variant_suffix)
+
+                inflection_parts[i_infl_part].update(
+                    combine_special_separated_parts(special_parts=zerowidth_parts, special_separators=spec_char)
+                )
+
+            # for dash-contained names like ...Adamovi#../Adamu#..-Philippovi#../Philippu#...
+            # dash variants: 0x2D (0045), 0x96 (0150), 0x97 (0151), 0xAD (0173)
+            # regex splitting is needed due to Adamovi#../Adamu#..-Philippovi#../Philippu#.. vs. Bo-gdanovići#../Bo-gdanovićovi#..
+            is_dashed = False
+            matches = regex.findall(r"([^/#]*#[^/" + RE_DASHES + r"]*(?:/[^#]*#[^/" + RE_DASHES + r"]*)*)(" + RE_DASHES_VARIANTS + r"|$)", infl_part)
+            if matches and len(matches) > 1:
+                is_dashed = True
+                dashed_parts = {}
+                parts_separators = {}
+                for i_dashed_part, infl_dashed_item in enumerate(matches):
+                    dashed_parts[i_dashed_part] = _separate_part_variants(name_part=infl_dashed_item[0], part_variant_suffix=part_variant_suffix)
+                    parts_separators[i_dashed_part] = infl_dashed_item[1]
+                inflection_parts[i_infl_part].update(
+                    combine_special_separated_parts(special_parts=dashed_parts, special_separators=parts_separators)
+                )
+            if is_dashed == False and is_spec_char == False:
+                inflection_parts[i_infl_part].update(_separate_part_variants(name_part=infl_part, part_variant_suffix=part_variant_suffix))
+
 
         built_name_inflections, built_subnames = build_name_variant(
             line[2][-1] if len(line[2]) else "",
@@ -543,6 +603,16 @@ def loadWordFreq():
             flush=True,
         )
     gc.collect()
+
+
+def _separate_part_variants(name_part: str, part_variant_suffix: str = "") -> Set[str]:
+    part_variants = set()
+    for part_variant in name_part.split("/"):
+        part_variants.add(
+            regex.sub(r"(\p{L}*)(\[[^\]]+\])?", r"\g<1>", part_variant) + part_variant_suffix
+        )
+    return part_variants
+
 
 
 if __name__ == "__main__":

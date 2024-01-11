@@ -137,7 +137,7 @@ class Namelist(ABC):
             )
 
         # remove multiple white spaces
-        key = regex.sub("\\s+", " ", key).strip()
+        key = regex.sub(r"\s+", " ", key).strip()
 
         # there are no changes for the name from the allow list
         if key not in self._lst_allowed and self._is_unsuitable_key(
@@ -385,17 +385,18 @@ class Namelist(ABC):
             if "." not in name:
                 continue
             name_adjusted = regex.sub(
-                r"(\p{Lu}\.)%s? (?=\p{Lu})" % self.RE_FLAG_NAMES, "\\g<1>", name
+                r"(\p{Lu}\.%s?) (?=\p{Lu})" % self.RE_FLAG_NAMES, r"\g<1>", name
             )  # J. M. W. Turner -> J.M.W.Turner
             self._add(name_adjusted)
             name_adjusted = regex.sub(
-                r"(\p{Lu}\.)%s?(?=\p{Lu}\p{L}+)" % self.RE_FLAG_NAMES,
-                "\\g<1> ",
+                r"(\p{Lu}\.%s?)(?=\p{Lu}\p{L}+)" % self.RE_FLAG_NAMES,
+                r"\g<1> ",
                 name_adjusted,
             )  # J.M.W.Turner -> J.M.W. Turner
             self._add(name_adjusted)
-            # self._add(regex.sub(r"\.%s" % self.RE_FLAG_NAMES, "",
-            # name_adjusted)) # J.M.W. Turner -> JMW Turner
+            # self._add(
+            #    regex.sub(r"\.%s" % self.RE_FLAG_NAMES, "", name_adjusted)
+            # ) # J.M.W. Turner -> JMW Turner
         self._debug_msg_name_variants(original_name_variants=tmp_name_variants)
 
     def _do_conversions_for_persons_mc_names(self) -> None:
@@ -404,10 +405,10 @@ class Namelist(ABC):
         for name in self._name_variants.copy():
             if "Mc" in name:
                 self._add(
-                    regex.sub(r"Mc(\p{Lu})", "Mc \\g<1>", name)
+                    regex.sub(r"Mc(\p{Lu})", r"Mc \g<1>", name)
                 )  # McCollum -> Mc Collum
                 self._add(
-                    regex.sub(r"Mc (\p{Lu})", "Mc\\g<1>", name)
+                    regex.sub(r"Mc(?:#[A-Za-z0-9]+)? (\p{Lu})", r"Mc\g<1>", name)
                 )  # Mc Collum -> McCollum
         self._debug_msg_name_variants(original_name_variants=tmp_name_variants)
 
@@ -440,7 +441,7 @@ class Namelist(ABC):
             for x in self._lst_freqterms:
                 if x in key:
                     # John Brown, Jr. -> John Brown
-                    new_key = regex.sub(" ?,? ?" + x + "$", "", key)
+                    new_key = regex.sub(" ?, ?" + x + "$", "", key)
                     # Sir Patrick Stewart -> Patrick Stewart
                     new_key = regex.sub("^" + x + " ", "", new_key)
                     if new_key.count(" ") >= 1:
@@ -456,7 +457,9 @@ class Namelist(ABC):
             "#jS",
             "#jSE",
         ]:
-            logging.debug(f"Early termination of _add_tagged_person_alternatives_variants() for \"{key}\" (nameparts: {nameparts})")
+            logging.debug(
+                f'Early termination of _add_tagged_person_alternatives_variants() for "{key}" (nameparts: {nameparts})'
+            )
             return
 
         for i in range(len(nameparts["n_unknowns"]) + 1):
@@ -533,75 +536,75 @@ class Namelist(ABC):
         if self._debug_mode:
             tmp_name_variants = self._name_variants.copy()
         self._add(
-            regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\\g<1>. \\g<2>", key)
+            regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", r"\g<1>. \g<2>", key)
         )  # Adolf Born -> A. Born
         self._add(
             regex.sub(
                 r"^(\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$",
-                "\\g<1>. \\g<2>. \\g<3>",
+                r"\g<1>. \g<2>. \g<3>",
                 key,
             )
         )  # Peter Paul Rubens -> P. P. Rubens
         self._add(
             regex.sub(
                 r"^(\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$",
-                "\\g<1> \\g<2>. \\g<3>",
+                r"\g<1> \g<2>. \g<3>",
                 key,
             )
         )  # Peter Paul Rubens -> Peter P. Rubens
         self._add(
             regex.sub(
-                r"^(\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\\g<1> \\g<3>", key
+                r"^(\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", r"\g<1> \g<3>", key
             )
         )  # Peter Paul Rubens -> Peter Rubens
         self._add(
             regex.sub(
                 r"^(\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$",
-                "\\g<1>. \\g<2>. \\g<3>. \\g<4>",
+                r"\g<1>. \g<2>. \g<3>. \g<4>",
                 key,
             )
         )  # Johann Gottfried Bernhard Bach -> J. G. B. Bach
         self._add(
             regex.sub(
                 r"^(\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+) (\p{Lu}\p{L}+)$",
-                "\\g<1>. \\g<2>. \\g<3> \\g<4>",
+                r"\g<1>. \g<2>. \g<3> \g<4>",
                 key,
             )
         )  # Johann Gottfried Bernhard Bach -> J. G. Bernhard Bach
         self._add(
             regex.sub(
                 r"^(\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$",
-                "\\g<1> \\g<2>. \\g<3>. \\g<4>",
+                r"\g<1> \g<2>. \g<3>. \g<4>",
                 key,
             )
         )  # Johann Gottfried Bernhard Bach -> Johann G. B. Bach
         self._add(
             regex.sub(
                 r"^(\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu}\p{L}+) (\p{Lu}\p{L}+)$",
-                "\\g<1> \\g<2>. \\g<3> \\g<4>",
+                r"\g<1> \g<2>. \g<3> \g<4>",
                 key,
             )
         )  # Johann Gottfried Bernhard Bach -> Johann G. Bernhard Bach
         self._add(
             regex.sub(
                 r"^(\p{Lu}\p{L}+) (\p{Lu}\p{L}+) (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$",
-                "\\g<1> \\g<2> \\g<3>. \\g<4>",
+                r"\g<1> \g<2> \g<3>. \g<4>",
                 key,
             )
         )  # Johann Gottfried Bernhard Bach -> Johann Gottfried B. Bach
         # do not consider "Karel IV." or "Albert II. Monacký", ...
         if not regex.search("[IVX]\\.", key):
             self._add(
-                regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu}\p{L}+)$", "\\g<2>, \\g<1>", key)
+                regex.sub(r"^(\p{Lu}\p{L}+) (\p{Lu}\p{L}+)$", r"\g<2>, \g<1>", key)
             )  # Adolf Born -> Born, Adolf
             # Adolf Born -> Born, A.
             self._add(
-                regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", "\\g<2>, \\g<1>.", key)
+                regex.sub(r"^(\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$", r"\g<2>, \g<1>.", key)
             )
             self._add(
                 regex.sub(
                     r"^(\p{Lu}\p{L}+) (\p{Lu}\p{L}+) (\p{Lu}\p{L}+)$",
-                    "\\g<3>, \\g<1> \\g<2>",
+                    r"\g<3>, \g<1> \g<2>",
                     key,
                 )
             )  # Johann Joachim Quantz -> Quantz, Johann Joachim
@@ -609,14 +612,14 @@ class Namelist(ABC):
             self._add(
                 regex.sub(
                     r"^(\p{Lu})\p{L}+ (\p{Lu})\p{L}+ (\p{Lu}\p{L}+)$",
-                    "\\g<3>, \\g<1>. \\g<2>.",
+                    r"\g<3>, \g<1>. \g<2>.",
                     key,
                 )
             )
             self._add(
                 regex.sub(
                     r"^(\p{Lu}\p{L}+) (\p{Lu}\p{L}+) (\p{Lu}\p{L}+)$",
-                    "\\g<2> \\g<3>, \\g<1>",
+                    r"\g<2> \g<3>, \g<1>",
                     key,
                 )
             )  # Tomáš Garrigue Masaryk -> Garrigue Masaryk, Tomáš
@@ -624,7 +627,7 @@ class Namelist(ABC):
             self._add(
                 regex.sub(
                     r"^(\p{Lu})\p{L}+ (\p{Lu}\p{L}+) (\p{Lu}\p{L}+)$",
-                    "\\g<2> \\g<3>, \\g<1>.",
+                    r"\g<2> \g<3>, \g<1>.",
                     key,
                 )
             )
@@ -691,7 +694,7 @@ class Namelist(ABC):
         for tmp in key_inflections.copy():
             if regex.search(r"(?:-|–)\p{Lu}", tmp):
                 # Payne-John Christo -> Payne John Christo
-                key_inflections.add(regex.sub(r"(?:-|–)(\p{Lu})", " \\g<1>", tmp))
+                key_inflections.add(regex.sub(r"(?:-|–)(\p{Lu})", r" \g<1>", tmp))
 
         return key_inflections
 

@@ -49,7 +49,7 @@ class Persons(ABC):
 		For example:
 		   * ["Havel"] => ["Havel"]
 		   * ["O'Connor"] => ["O'Connor", "o'Connor", "Connor"]
-		   * ["van Beethoven"] => ["Ludwig", "Beethoven", "van Beethoven", "Van Beethoven"]
+		   * ["Ludwig van Beethoven"] => ["Ludwig", "Beethoven", "van Beethoven", "Van Beethoven"]
 		'''
 
 		if AutomataVariants.isLowercase(config):
