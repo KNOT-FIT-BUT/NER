@@ -66,8 +66,19 @@ getGitBasedVersion()
       VERSION="${VERSION}_dirty_`date \"+%Y%m%d-%H%M%S\"`"
     fi
   else
-    VERSION="nogit_`date \"+%Y%m%d-%H%M%S\"`"
+    if test "$VERSION" != ""
+    then
+      VERSION="-toplevel_git_${VERSION}"
+    fi
+    VERSION="nogit_`date \"+%Y%m%d-%H%M%S\"`${VERSION}"
   fi
+
+  if test "$PWD" != "`git rev-parse --show-toplevel`"
+  then
+    >&2 echo "VERSION WARNING: Version \"${VERSION}\" is not detected above top-level git directory - this may lead to an error."
+  fi
+
+
   cd ${_OLDPWD}
 
   echo $VERSION
@@ -295,7 +306,7 @@ then
   echo "NAMEGEN version: ${NAMEGEN_VERSION}"
 fi
 
-ATM_VERSION=`getGitBasedVersion ".."`
+ATM_VERSION=`getGitBasedVersion "../"`
 echo "AUTOMATA version: ${ATM_VERSION}"
 echo "---------------------------------"
 
