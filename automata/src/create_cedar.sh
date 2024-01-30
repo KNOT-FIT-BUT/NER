@@ -306,7 +306,7 @@ then
   echo "NAMEGEN version: ${NAMEGEN_VERSION}"
 fi
 
-ATM_VERSION=`getGitBasedVersion "../"`
+ATM_VERSION=`getGitBasedVersion "../../"`
 echo "AUTOMATA version: ${ATM_VERSION}"
 echo "---------------------------------"
 

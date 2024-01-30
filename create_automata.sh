@@ -144,10 +144,18 @@ fi
 
 if $LOG; then
   KB_VERSION=`head -n 1 "${KB_FILE}" | sed -E 's/^VERSION=//' | tr -d '\n\r '`
-  LOG_VERSION=${USER}
+  if test "${PWD::${#HOME}}" != "${HOME}"
+  then
+    LOG_VERSION=${USER}
+    LOG_SEPARATOR="."
+  else
+    LOG_VERSION=
+    LOG_SEPARATOR=
+  fi
+
   if test "${KB_VERSION}" != ""
   then
-    LOG_VERSION="${LOG_VERSION}.${KB_VERSION}"
+    LOG_VERSION="${LOG_VERSION}${LOG_SEPARATOR}${KB_VERSION}"
   fi
 
   rm -f create_automata.sh.fifo.${LOG_VERSION}.stdout create_automata.sh.fifo.${LOG_VERSION}.stderr create_automata.sh.fifo.${LOG_VERSION}.stdmix

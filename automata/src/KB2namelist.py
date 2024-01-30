@@ -22,30 +22,20 @@ limitations under the License.
 #
 # Description: Creates namelist from KB.
 
-import sys
-import os
-
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-
 import argparse
 import gc
 import itertools
+import os
 import pickle
 import regex
+import sys
 
 from multiprocessing import Pool
 from pandas import to_numeric
 from typing import List, Set, Union
 
-try:
-    import metrics_knowledge_base
-except ImportError:
-    from . import metrics_knowledge_base
-
-try:
-    from configs import LANG_DEFAULT
-except ImportError:
-    from .configs import LANG_DEFAULT
+from automata.src.configs import LANG_DEFAULT
+from automata.src import metrics_knowledge_base
 from libs.automata_variants import AutomataVariants
 from libs.entities.entity_loader import EntityLoader
 from libs.module_loader import ModuleLoader

@@ -3,24 +3,25 @@
 
 import logging
 import regex
+import os
 import sys
 
 from abc import ABC, abstractmethod
 from itertools import permutations
 from typing import Dict, List, Set, TextIO
 
+from automata.src.metrics_knowledge_base import KnowledgeBase
 from libs.automata_variants import AutomataVariants
 from libs.utils import remove_accent
 from libs.entities.entity_loader import EntityLoader
 from libs.lib_loader import LibLoader
 from libs.nationalities.nat_loader import NatLoader
-from metrics_knowledge_base import KnowledgeBase
 
 
 class Namelist(ABC):
     NONACCENT_TYPES = set(["person", "geographical"])
 
-    RE_FLAG_NAMES = r"(?:#[A-Z0-9]+E?)"
+    RE_FLAG_NAMES = r"(?:#j?[A-Z0-9]+E?)"
     RE_FLAG_ONLY1ST_FIRSTNAME = r"(?:#j?[GI]E?)"
     RE_FLAG_FIRSTNAME = r"(?:#j?[G]E?)"
     RE_FLAG_SURE_SURNAME = r"(?:#j?[^GI]E?)"
@@ -242,8 +243,9 @@ class Namelist(ABC):
 
         for name_variant in self._name_variants:
             key = regex.sub(
-                r"#[A-Za-z0-9]+E?\u200b?(?= |,|\.|-|–|$)", "", name_variant
+                r"#[A-Za-z0-9]+E?(?=\u200b| |,|\.|-|–|$)", "", name_variant
             )  # \u200b = zero width space
+            key = regex.sub(r"\u200b", "", key)
 
             # temporary fix for mountains like K#L12, K#L2, ... (will be solved
             # by extra separator by M. Dočekal)
@@ -327,11 +329,10 @@ class Namelist(ABC):
                 )
 
     def _debug_msg_name_variants(self, original_name_variants: Set[str]) -> None:
-        if self._debug_mode:
-            diff_name_variants = self._name_variants.difference(original_name_variants)
-            logging.debug(
-                f'Name variants for "{self._debug_entity}" after {sys._getframe(1).f_code.co_name}(): {diff_name_variants} [+{len(diff_name_variants)}]'
-            )
+        diff_name_variants = self._name_variants.difference(original_name_variants)
+        logging.debug(
+            f'Name variants for "{self._debug_entity}" after {sys._getframe(1).f_code.co_name}(): {diff_name_variants} [+{len(diff_name_variants)}]'
+        )
 
     def _do_conversions_for_i_with_grave(self) -> None:
         if self._debug_mode:
@@ -347,7 +348,8 @@ class Namelist(ABC):
                 name = regex.sub("Ì", "Í", name)  # FORLÌ -> FORLÍ
             if with_grave:
                 self._add(name)
-        self._debug_msg_name_variants(original_name_variants=tmp_name_variants)
+        if self._debug_mode:
+            self._debug_msg_name_variants(original_name_variants=tmp_name_variants)
 
     def _do_conversions_for_persons_names(self) -> None:
         if self._debug_mode:
@@ -355,7 +357,8 @@ class Namelist(ABC):
         self._do_conversions_for_persons_dashed_names()
         self._do_conversions_for_persons_dotted_names()
         self._do_conversions_for_persons_mc_names()
-        self._debug_msg_name_variants(original_name_variants=tmp_name_variants)
+        if self._debug_mode:
+            self._debug_msg_name_variants(original_name_variants=tmp_name_variants)
 
     def _do_conversions_for_persons_dashed_names(self) -> None:
         if self._debug_mode:
@@ -376,7 +379,8 @@ class Namelist(ABC):
                     if dash_type != "-":  # 0x2D (0045)
                         # Mao Ce<dash_type>tung -> Mao Ce-Tung
                         self._add("-".join(name_capitalized_parts))
-        self._debug_msg_name_variants(original_name_variants=tmp_name_variants)
+        if self._debug_mode:
+            self._debug_msg_name_variants(original_name_variants=tmp_name_variants)
 
     def _do_conversions_for_persons_dotted_names(self) -> None:
         if self._debug_mode:
@@ -384,20 +388,42 @@ class Namelist(ABC):
         for name in self._name_variants.copy():
             if "." not in name:
                 continue
+            # J. M. W. Turner -> J.M.W.Turner
+            # Turner, J. M. W. -> Turner, J.M.W.
             name_adjusted = regex.sub(
-                r"(\p{Lu}\.%s?) (?=\p{Lu})" % self.RE_FLAG_NAMES, r"\g<1>", name
-            )  # J. M. W. Turner -> J.M.W.Turner
+                r"(\p{Lu}\.%s?) (?=\p{Lu})" % self.RE_FLAG_NAMES, r"\g<1>\u200b", name
+            )
             self._add(name_adjusted)
+
+            # J.M.W.Turner -> J.M.W. Turner
             name_adjusted = regex.sub(
-                r"(\p{Lu}\.%s?)(?=\p{Lu}\p{L}+)" % self.RE_FLAG_NAMES,
+                r"(?<!, ?)(\p{Lu}\.%s?)\u200b(?=\p{Lu}\p{L}+)" % self.RE_FLAG_NAMES,
                 r"\g<1> ",
                 name_adjusted,
-            )  # J.M.W.Turner -> J.M.W. Turner
+            )
             self._add(name_adjusted)
-            # self._add(
-            #    regex.sub(r"\.%s" % self.RE_FLAG_NAMES, "", name_adjusted)
-            # ) # J.M.W. Turner -> JMW Turner
-        self._debug_msg_name_variants(original_name_variants=tmp_name_variants)
+
+            # Turner, J.M.W -> Turner,J.M.W
+            #name_adjusted = regex.sub(
+            #    r"(?<=,) (\p{Lu}\.)", r"\g<1>", name_adjusted
+            #)
+            #self._add(name_adjusted)
+
+            # J.M.W. Turner -> JMW Turner
+            # Turner,J.M.W -> Turner,JMW
+            #name_adjusted = regex.sub(
+            #    r"\.(%s?\u200b?)" % self.RE_FLAG_NAMES, r"\g<1>", name_adjusted
+            #)
+            #self._add(name_adjusted)
+
+            # Turner,JMW -> Turner, JMW
+            #name_adjusted = regex.sub(
+            #    r"(?<=,)(\p{Lu})", r" \g<1>", name_adjusted
+            #)
+            #self._add(name_adjusted)
+
+        if self._debug_mode:
+            self._debug_msg_name_variants(original_name_variants=tmp_name_variants)
 
     def _do_conversions_for_persons_mc_names(self) -> None:
         if self._debug_mode:
@@ -410,7 +436,8 @@ class Namelist(ABC):
                 self._add(
                     regex.sub(r"Mc(?:#[A-Za-z0-9]+)? (\p{Lu})", r"Mc\g<1>", name)
                 )  # Mc Collum -> McCollum
-        self._debug_msg_name_variants(original_name_variants=tmp_name_variants)
+        if self._debug_mode:
+            self._debug_msg_name_variants(original_name_variants=tmp_name_variants)
 
     def _add_person_variants(
         self, key: str, nametype: str, link: str, type_set: Set[str]
@@ -472,8 +499,17 @@ class Namelist(ABC):
                 sep_special = " "
                 fn_possible_others_full += " ".join(fn_possible_others)
                 for fn_possible_other in fn_possible_others:
-                    fn_possible_others_abbr += fn_possible_other[:1] + ". "
+                    fn_possible_other_parts = fn_possible_other.split("#")
+                    fn_possible_others_abbr += (
+                        fn_possible_other[0] + "." +
+                        (
+                            "#" + fn_possible_other_parts[-1]
+                            if len(fn_possible_other_parts) > 1
+                            else ""
+                        ) + " "
+                     )
                 fn_possible_others_abbr = fn_possible_others_abbr.strip()
+            logging.debug(f"Abbreviations for other names of key \"{key}\": \"{fn_possible_others_full}\" -> \"{fn_possible_others_abbr}\"")
 
             sn_full_variants = {}
             sn_unknowns = " ".join(nameparts["n_unknowns"][i:])
@@ -502,6 +538,10 @@ class Namelist(ABC):
         sep_special: str,
         sn_full: str,
     ) -> None:
+        flags_fn_1st = fn_1st.split('#')
+        fn_1st_abbr = f"{fn_1st[0]}.{('#' + flags_fn_1st[-1]) if len(flags_fn_1st) > 1 else ''}"
+        logging.debug(f"Abbreviations for first name of key \"{fn_1st} {sn_full}\": \"{fn_1st}\" -> \"{fn_1st_abbr}\"")
+
         if self._debug_mode:
             tmp_name_variants = self._name_variants.copy()
         # For all of following format exaplaining comments of additions let us
@@ -511,12 +551,12 @@ class Namelist(ABC):
             "{} {}{}{}".format(fn_1st, fn_others_abbr, sep_special, sn_full)
         )  # Johann G. B. Bach
         self._add(
-            "{}. {}{}{}".format(fn_1st[:1], fn_others_abbr, sep_special, sn_full)
+            "{} {}{}{}".format(fn_1st_abbr, fn_others_abbr, sep_special, sn_full)
         )  # J. G. B. Bach
         # Johann Bach
         self._add("{} {}".format(fn_1st, sn_full))
         # J. Bach
-        self._add("{}. {}".format(fn_1st[:1], sn_full))
+        self._add("{} {}".format(fn_1st_abbr, sn_full))
         self._add(
             "{}, {}{}{}".format(sn_full, fn_1st, sep_special, fn_others_full)
         )  # Bach, Johann Gottfried Bernhard
@@ -524,13 +564,14 @@ class Namelist(ABC):
         self._add("{}, {}{}{}".format(sn_full, fn_1st, sep_special, fn_others_abbr))
         # Bach, J. G. B.
         self._add(
-            "{}, {}.{}{}".format(sn_full, fn_1st[:1], sep_special, fn_others_abbr)
+            "{}, {}{}{}".format(sn_full, fn_1st_abbr, sep_special, fn_others_abbr)
         )
         # Bach, Johann
         self._add("{}, {}".format(sn_full, fn_1st))
         # Bach, J.
-        self._add("{}, {}.".format(sn_full, fn_1st[:1]))
-        self._debug_msg_name_variants(original_name_variants=tmp_name_variants)
+        self._add("{}, {}".format(sn_full, fn_1st_abbr))
+        if self._debug_mode:
+            self._debug_msg_name_variants(original_name_variants=tmp_name_variants)
 
     def _add_untagged_person_variants(self, key: str) -> None:
         if self._debug_mode:
@@ -631,7 +672,8 @@ class Namelist(ABC):
                     key,
                 )
             )
-        self._debug_msg_name_variants(original_name_variants=tmp_name_variants)
+        if self._debug_mode:
+            self._debug_msg_name_variants(original_name_variants=tmp_name_variants)
 
     def _save_key_to_namelist(self, key: str, link: str) -> None:
         if key not in self._namelist:

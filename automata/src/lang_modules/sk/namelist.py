@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import sys
-
-sys.path.append("../..")
-
 from typing import Set
 
-from namelist import Namelist as ParentClass
+from automata.src.namelist import Namelist as ParentClass
 
 
 class Namelist(ParentClass):

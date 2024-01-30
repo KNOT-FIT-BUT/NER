@@ -3,7 +3,7 @@ import unittest
 from typing import Set
 from unittest.mock import MagicMock
 
-from src import KB2namelist, metrics_knowledge_base
+from automata.src import KB2namelist
 
 class TestKB2namelist(unittest.TestCase):
     PRINT_DEBUG: bool = True
@@ -132,11 +132,6 @@ class TestKB2namelist(unittest.TestCase):
                 self._do_common_test(expected_basename=expected_basename, expected_inflections=expected_inflections, column_inflection=column_inflection)
 
 
-    def test_name_inflection_dashed_honore_charles_michel_joseph(self) -> None:
-        expected_basename = "Honoré- -Charles-Michel-Joseph"
-        #|Honorém[k1gMnSc6]#jG/Honoré[k1gMnSc6]#jG/Honoréovi[k1gMnSc6]#jG- -Charlesovi[k1gMnSc6]#jG/Charlesi[k1gMnSc6]#jG-Michelu[k1gMnSc6]#jG/Michelovi[k1gMnSc6]#jG-Josephovi[k1gMnSc6]#jS/Josephu[k1gMnSc6]#jS
-
-
     def _do_common_test(self, expected_basename: str, expected_inflections: Set[str], column_inflection: str) -> None:
         line = f"{expected_basename}\tcs\tP:::M\t{column_inflection}\t"
 
@@ -146,7 +141,6 @@ class TestKB2namelist(unittest.TestCase):
 
         self.assertEqual(test_basename, expected_basename)
         self.assertEqual(test_inflections, expected_inflections)
-
 
 
     def _test_name_inflections_dash_delimiter(self, dash_delimiter: str) -> None:
