@@ -8,6 +8,9 @@ import subprocess
 import tempfile
 import time
 
+from os import access, R_OK
+from os.path import isfile
+
 from .configs import *
 # Pro debugování:
 from libs.debug import print_dbg, print_dbg_en
@@ -25,11 +28,14 @@ class KbDaemon(object):
 		self.kb_shm_name = kb_shm_name
 
 	def start(self):
+		if not isfile(PATH_KB) or not access(PATH_KB, R_OK):
+			raise RuntimeError(f"KB file on path \"{PATH_KB}\" does not exist or is not readable.")
 		if self.kb_shm_name:
 			self.ps = subprocess.Popen([PATH_KB_DAEMON, "-s", self.kb_shm_name, PATH_KB], stdout=self.stdout, stderr=self.stderr)
 		else:
 			self.ps = subprocess.Popen([PATH_KB_DAEMON, PATH_KB], stdout=self.stdout, stderr=self.stderr)
 
+		print(f"Executed KB daemon with command: \"{subprocess.list2cmdline(self.ps.args)}\"", file=sys.stderr)
 		output = ""
 		try:
 			i = 0
