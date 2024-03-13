@@ -416,6 +416,7 @@ def parseFigaOutput(figa_output):
     for line in figa_output.split("\n"):
         if line != "":
             kb_rows, start_offset, end_offset, name, flag = line.split("\t")
+            start_offset = start_offset.lstrip('*')
             yield FigaOutput(map(int, kb_rows.split(";")), int(start_offset)-1, int(end_offset), name, flag) # Figa má start_offset+1 (end_offset má dobře).
 
 seek_names = None
