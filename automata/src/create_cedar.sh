@@ -289,7 +289,7 @@ KB=`getFullPath "${KB}" "${OLD_WORKDIR}"`
 # cesta pro import modulů do Python skriptů
 export PYTHONPATH=../../:$PYTHONPATH
 
-make -C ..
+make -C ../..
 
 KB_VERSION=`head -n 1 "${KB}" | sed -E 's/^VERSION=//' | tr -d '\n\r '`
 DIR_OUTPUTS="${DIR_OUTPUTS}/${LANG}/${KB_VERSION}_${USER}"
