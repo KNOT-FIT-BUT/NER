@@ -1,32 +1,26 @@
-import unittest
-
 from typing import Set
-from unittest.mock import MagicMock
+from unittest import TestCase
 
 from automata.src import KB2namelist
 
-class TestKB2namelist(unittest.TestCase):
+
+class TestKB2namelist(TestCase):
     PRINT_DEBUG: bool = True
 
     def setUp(self) -> None:
         KB2namelist.persons = KB2namelist.load_persons_module("cs")
 
-
     def test_dash_delimiter_0x2D_0045(self) -> None:
         return self._test_name_inflections_dash_delimiter(dash_delimiter="-")
-
 
     def test_dash_delimiter_0x96_0150(self) -> None:
         return self._test_name_inflections_dash_delimiter(dash_delimiter="–")
 
-
     def test_dash_delimiter_0x97_0151(self) -> None:
         return self._test_name_inflections_dash_delimiter(dash_delimiter="—")
 
-
     def test_dash_delimiter_0xAD_0173(self) -> None:
         return self._test_name_inflections_dash_delimiter(dash_delimiter="­")
-
 
     def test_name_inflections_comma_delimiter(self) -> None:
         expected_basename = "Alfred Pritchard Sloan, Jr."
@@ -40,15 +34,24 @@ class TestKB2namelist(unittest.TestCase):
         for firstname in firstname_variants:
             for firstname2 in firstname2nd_variants:
                 for surname in surname_variants:
-                    expected_inflections.add(f"{firstname} {firstname2} {surname}, {generation_mark}")
+                    expected_inflections.add(
+                        f"{firstname} {firstname2} {surname}, {generation_mark}"
+                    )
 
         column_inflection = "/".join([f"{x}[k1gMnSc6]#jG" for x in firstname_variants])
-        column_inflection += f" {'/'.join([f'{x}[k1gMnSc6]#jG' for x in firstname2nd_variants])}"
-        column_inflection += f" {'/'.join([f'{x}[k1gMnSc6]#jS' for x in surname_variants])}"
+        column_inflection += (
+            f" {'/'.join([f'{x}[k1gMnSc6]#jG' for x in firstname2nd_variants])}"
+        )
+        column_inflection += (
+            f" {'/'.join([f'{x}[k1gMnSc6]#jS' for x in surname_variants])}"
+        )
         column_inflection += f", {generation_mark}#GS"
 
-        self._do_common_test(expected_basename=expected_basename, expected_inflections=expected_inflections, column_inflection=column_inflection)
-
+        self._do_common_test(
+            expected_basename=expected_basename,
+            expected_inflections=expected_inflections,
+            column_inflection=column_inflection,
+        )
 
     def test_name_inflections_dotted(self) -> None:
         expected_basename = f"Hohenberg a.d.Eger"
@@ -64,11 +67,16 @@ class TestKB2namelist(unittest.TestCase):
 
         column_inflection = "/".join([f"{x}[k1gMnSc6]#jL" for x in firstpart_variants])
         column_inflection += " "
-        column_inflection += "".join([f"{x}#A" + u"\u200b" for x in dotted_parts])
-        column_inflection += "/".join([f"{x}[kg1MnSc6]#jL" for x in secondpart_variants])
+        column_inflection += "".join([f"{x}#A" + "\u200b" for x in dotted_parts])
+        column_inflection += "/".join(
+            [f"{x}[kg1MnSc6]#jL" for x in secondpart_variants]
+        )
 
-        self._do_common_test(expected_basename=expected_basename, expected_inflections=expected_inflections, column_inflection=column_inflection)
-
+        self._do_common_test(
+            expected_basename=expected_basename,
+            expected_inflections=expected_inflections,
+            column_inflection=column_inflection,
+        )
 
     def test_name_inflections_dotted_dashed_combination(self) -> None:
         expected_basename = "R.W. Seton-Watson"
@@ -79,16 +87,25 @@ class TestKB2namelist(unittest.TestCase):
         expected_inflections = set()
         for dashed_1st in dashed_1st_part_variants:
             for dashed_2nd in dashed_2nd_part_variants:
-                expected_inflections.add(f"{''.join(dotted_parts)} {dashed_1st}-{dashed_2nd}")
+                expected_inflections.add(
+                    f"{''.join(dotted_parts)} {dashed_1st}-{dashed_2nd}"
+                )
 
-        column_inflection = "".join([f"{x}#I" + u"\u200b" for x in dotted_parts])
+        column_inflection = "".join([f"{x}#I" + "\u200b" for x in dotted_parts])
         column_inflection += " "
-        column_inflection += "/".join([f"{x}[k1gMnSc6]#jS" for x in dashed_1st_part_variants])
+        column_inflection += "/".join(
+            [f"{x}[k1gMnSc6]#jS" for x in dashed_1st_part_variants]
+        )
         column_inflection += "-"
-        column_inflection += "/".join([f"{x}[k1gMnSc6]#js" for x in dashed_2nd_part_variants])
+        column_inflection += "/".join(
+            [f"{x}[k1gMnSc6]#js" for x in dashed_2nd_part_variants]
+        )
 
-        self._do_common_test(expected_basename=expected_basename, expected_inflections=expected_inflections, column_inflection=column_inflection)
-
+        self._do_common_test(
+            expected_basename=expected_basename,
+            expected_inflections=expected_inflections,
+            column_inflection=column_inflection,
+        )
 
     def test_name_inflections_dashed_bo_gdanovic(self) -> None:
         expected_basename = "Bogdan Bo­gdanović"
@@ -104,10 +121,15 @@ class TestKB2namelist(unittest.TestCase):
         column_inflection += " "
         column_inflection += "/".join([f"{x}[k1gMnSc3]#jS" for x in surname_variants])
 
-        self._do_common_test(expected_basename=expected_basename, expected_inflections=expected_inflections, column_inflection=column_inflection)
+        self._do_common_test(
+            expected_basename=expected_basename,
+            expected_inflections=expected_inflections,
+            column_inflection=column_inflection,
+        )
 
-
-    def test_name_inflections_dashed_hypotetic_bo_gda_novic_with_dashes_combination_of_marked_and_unmarked(self) -> None:
+    def test_name_inflections_dashed_hypotetic_bo_gda_novic_with_dashes_combination_of_marked_and_unmarked(
+        self,
+    ) -> None:
         firstname_variants = ["Bogdanovi", "Bogdanu"]
         surname_dashed1 = "Bo"
         surname_dashed2_variants = ["gda", "gdá"]
@@ -121,27 +143,49 @@ class TestKB2namelist(unittest.TestCase):
                 for first in firstname_variants:
                     for middle in surname_dashed2_variants:
                         for last in surname_dashed3_variants:
-                            expected_inflections.add(f"{first} {surname_dashed1}{dash1}{middle}{dash2}{last}")
+                            expected_inflections.add(
+                                f"{first} {surname_dashed1}{dash1}{middle}{dash2}{last}"
+                            )
 
-                column_inflection = "/".join([f"{x}[k1gMnSc3]#jG" for x in firstname_variants])
+                column_inflection = "/".join(
+                    [f"{x}[k1gMnSc3]#jG" for x in firstname_variants]
+                )
                 column_inflection += " "
-                column_inflection += "/".join([f"{surname_dashed1}{dash1}{x}[k1gMnSc3]#jS" for x in surname_dashed2_variants])
+                column_inflection += "/".join(
+                    [
+                        f"{surname_dashed1}{dash1}{x}[k1gMnSc3]#jS"
+                        for x in surname_dashed2_variants
+                    ]
+                )
                 column_inflection += dash2
-                column_inflection += "/".join([f"{x}[k1gMnSc3]#jS" for x in surname_dashed3_variants])
+                column_inflection += "/".join(
+                    [f"{x}[k1gMnSc3]#jS" for x in surname_dashed3_variants]
+                )
 
-                self._do_common_test(expected_basename=expected_basename, expected_inflections=expected_inflections, column_inflection=column_inflection)
+                self._do_common_test(
+                    expected_basename=expected_basename,
+                    expected_inflections=expected_inflections,
+                    column_inflection=column_inflection,
+                )
 
-
-    def _do_common_test(self, expected_basename: str, expected_inflections: Set[str], column_inflection: str) -> None:
+    def _do_common_test(
+        self,
+        expected_basename: str,
+        expected_inflections: Set[str],
+        column_inflection: str,
+    ) -> None:
         line = f"{expected_basename}\tcs\tP:::M\t{column_inflection}\t"
 
-        test_basename, test_inflections, test_subnames = KB2namelist.process_name_inflections(line)
+        test_basename, test_inflections, _ = KB2namelist.process_name_inflections(line)
 
-        self._print_debug(line=line, test_inflections=test_inflections, expected_inflections=expected_inflections)
+        self._print_debug(
+            line=line,
+            test_inflections=test_inflections,
+            expected_inflections=expected_inflections,
+        )
 
         self.assertEqual(test_basename, expected_basename)
         self.assertEqual(test_inflections, expected_inflections)
-
 
     def _test_name_inflections_dash_delimiter(self, dash_delimiter: str) -> None:
         expected_basename = f"Adam{dash_delimiter}Philippe de Custine"
@@ -155,17 +199,26 @@ class TestKB2namelist(unittest.TestCase):
         for firstname in firstname_variants:
             for surname1 in surname1st_variants:
                 for surname2 in surname2nd_variants:
-                    expected_inflections.add(f"{firstname}{dash_delimiter}{surname1} {surname_junction} {surname2}")
+                    expected_inflections.add(
+                        f"{firstname}{dash_delimiter}{surname1} {surname_junction} {surname2}"
+                    )
 
         column_inflection = "/".join([f"{x}[k1gMnSc3]#jG" for x in firstname_variants])
         column_inflection += f"{dash_delimiter}{'/'.join([f'{x}[k1gMnSc3]#jS' for x in surname1st_variants])}"
         column_inflection += f" {surname_junction}#jS"
-        column_inflection += f" {'/'.join([f'{x}[k1gMnSc3]#jS' for x in surname2nd_variants])}"
+        column_inflection += (
+            f" {'/'.join([f'{x}[k1gMnSc3]#jS' for x in surname2nd_variants])}"
+        )
 
-        self._do_common_test(expected_basename=expected_basename, expected_inflections=expected_inflections, column_inflection=column_inflection)
+        self._do_common_test(
+            expected_basename=expected_basename,
+            expected_inflections=expected_inflections,
+            column_inflection=column_inflection,
+        )
 
-
-    def _print_debug(self, line: str, test_inflections: Set[str], expected_inflections: Set[str]) -> None:
+    def _print_debug(
+        self, line: str, test_inflections: Set[str], expected_inflections: Set[str]
+    ) -> None:
         if self.PRINT_DEBUG == False:
             return
 

@@ -22,16 +22,16 @@ limitations under the License.
 #
 # Description: Creates namelist from KB.
 
-import argparse
 import gc
-import itertools
-import os
 import pickle
 import regex
-import sys
 
+from argparse import ArgumentParser
+from itertools import repeat
 from multiprocessing import Pool
+from os.path import dirname, isdir, isfile, join as path_join, realpath
 from pandas import to_numeric
+from sys import stderr
 from typing import List, Set, Union
 
 from automata.src.configs import LANG_DEFAULT
@@ -43,8 +43,6 @@ from libs.utils import remove_accent
 
 # a dictionary for storing results
 dictionary = {}
-# word frequency for variants with first lower- and first upper- case letter
-word_freq = dict()
 
 # multiple values delimiter
 KB_MULTIVALUE_DELIM = metrics_knowledge_base.KB_MULTIVALUE_DELIM
@@ -68,15 +66,21 @@ namelist = None
 persons = None
 UNWANTED_MATCH = None
 
+
 def parse_args() -> None:
     # defining commandline arguments
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-l", "--lang", type=str, required=True, help="language to process")
+    parser = ArgumentParser()
+    parser.add_argument(
+        "-l", "--lang", type=str, required=True, help="language to process"
+    )
     parser.add_argument(
         "-d", "--lowercase", action="store_true", help="creates a lowercase list"
     )
     parser.add_argument(
-        "-a", "--autocomplete", action="store_true", help="creates a list for autocomplete"
+        "-a",
+        "--autocomplete",
+        action="store_true",
+        help="creates a list for autocomplete",
     )
     parser.add_argument("-u", "--uri", action="store_true", help="creates an uri list")
     parser.add_argument(
@@ -86,7 +90,9 @@ def parse_args() -> None:
         help="file path of inflected tagged names (suitable for debug)",
     )
     parser.add_argument("-k", "--kb", required=True, help="knowledgebase file path")
-    parser.add_argument("-I", "--indir", help="directory base for auxiliary input files")
+    parser.add_argument(
+        "-I", "--indir", help="directory base for auxiliary input files"
+    )
     parser.add_argument(
         "-O",
         "--outdir",
@@ -114,16 +120,20 @@ def parse_args() -> None:
     )
     return parser.parse_args()
 
+
 def load_kb_struct(lang: str, kb: str):
     # load KB struct
     return metrics_knowledge_base.KnowledgeBase(lang, kb)
 
+
 def load_namelist_module(lang: str):
     return ModuleLoader.load("namelist", lang, "Namelist", "..dictionaries")
+
 
 def load_persons_module(lang: str):
     # load laguage specific class of Persons entity
     return EntityLoader.load("persons", lang, "Persons")
+
 
 def pickle_load(fpath):
     with open(fpath, "rb") as f:
@@ -142,8 +152,9 @@ def get_subnames_from_parts(subname_parts):
     subnames = set()
     subname_all = ""
     for subname_part in subname_parts:
-        #                                             0x29, 0x96, 0x97, 0xAD
-        subname_part = regex.sub(r"#[A-Za-z0-9]+E?( |%s|$)" % RE_DASHES_VARIANTS, r"\g<1>", subname_part)
+        subname_part = regex.sub(
+            r"#[A-Za-z0-9]+E?( |%s|$)" % RE_DASHES_VARIANTS, r"\g<1>", subname_part
+        )
         subnames.add(subname_part)
         if subname_all:
             subname_part = " " + subname_part
@@ -251,35 +262,15 @@ def build_name_variant(
         if strip_nameflags:
             for n in new_name_inflections:
                 name_stripped = regex.sub(
-	            r"#[A-Za-z0-9\.]+E?(?="
-	            + RE_DASHES_VARIANTS
-	            + r"|,| |\u200b|$)",
-	            "",
-	            n
-	        )
-                name_stripped = regex.sub(r"\u200b", "", name_stripped)
-                name_inflections.add(
-                    name_stripped
+                    r"#[A-Za-z0-9\.]+E?(?=" + RE_DASHES_VARIANTS + r"|,| |\u200b|$)",
+                    "",
+                    n,
                 )
+                name_stripped = regex.sub(r"\u200b", "", name_stripped)
+                name_inflections.add(name_stripped)
         else:
             name_inflections |= new_name_inflections
     return [name_inflections, subnames]
-
-
-# not used
-def get_KB_names_for(_fields, preserve_flag=False):
-    names = dict()
-    str_name = kb_struct.get_data_for(_fields, "NAME")
-    str_aliases = kb_struct.get_data_for(_fields, "ALIASES")
-    if not preserve_flag:
-        str_aliases = regex.sub(r"#(?:lang|ntype)=[^#|]*", "", str_aliases)
-
-    names = [str_name]
-    for alias in str_aliases.split(KB_MULTIVALUE_DELIM):
-        alias = alias.strip()
-        if alias and alias not in names:
-            names.append(alias)
-    return names
 
 
 def get_KB_names_ntypes_for(_fields):
@@ -306,16 +297,23 @@ def get_KB_names_ntypes_for(_fields):
     return names
 
 
-def combine_special_separated_parts(special_parts: List[str], special_separators: Union[str, List[str]], i_part: int = 0, stacked_name: str = "") -> Set:
+def combine_special_separated_parts(
+    special_parts: List[str],
+    special_separators: Union[str, List[str]],
+    i_part: int = 0,
+    stacked_name: str = "",
+) -> Set:
     output = set()
     if i_part < len(special_parts):
         for part in special_parts[i_part]:
-            output.update(combine_special_separated_parts(
-                special_parts=special_parts,
-                special_separators=special_separators,
-                i_part=i_part+1,
-                stacked_name=f"{stacked_name}{part}{special_separators if isinstance(special_separators, str) else special_separators[i_part]}"
-            ))
+            output.update(
+                combine_special_separated_parts(
+                    special_parts=special_parts,
+                    special_separators=special_separators,
+                    i_part=i_part + 1,
+                    stacked_name=f"{stacked_name}{part}{special_separators if isinstance(special_separators, str) else special_separators[i_part]}",
+                )
+            )
         return output
     else:
         if isinstance(special_separators, str):
@@ -350,30 +348,51 @@ def process_name_inflections(line, strip_nameflags=True):
                 is_spec_char = True
                 zerowidth_parts = {}
                 for i_zw_part, infl_zw_part in enumerate(infl_part.split(spec_char)):
-                    zerowidth_parts[i_zw_part] = _separate_part_variants(name_part=infl_zw_part, part_variant_suffix=part_variant_suffix)
+                    zerowidth_parts[i_zw_part] = _separate_part_variants(
+                        name_part=infl_zw_part, part_variant_suffix=part_variant_suffix
+                    )
 
                 inflection_parts[i_infl_part].update(
-                    combine_special_separated_parts(special_parts=zerowidth_parts, special_separators=spec_char)
+                    combine_special_separated_parts(
+                        special_parts=zerowidth_parts, special_separators=spec_char
+                    )
                 )
 
             # for dash-contained names like ...Adamovi#../Adamu#..-Philippovi#../Philippu#...
             # dash variants: 0x2D (0045), 0x96 (0150), 0x97 (0151), 0xAD (0173)
             # regex splitting is needed due to Adamovi#../Adamu#..-Philippovi#../Philippu#.. vs. Bo-gdanovići#../Bo-gdanovićovi#..
             is_dashed = False
-            matches = regex.findall(r"([^/#]*#[^/" + RE_DASHES + r"]*(?:/[^#]*#[^/" + RE_DASHES + r"]*)*)(" + RE_DASHES_VARIANTS + r"|$)", infl_part)
+            matches = regex.findall(
+                r"([^/#]*#[^/"
+                + RE_DASHES
+                + r"]*(?:/[^#]*#[^/"
+                + RE_DASHES
+                + r"]*)*)("
+                + RE_DASHES_VARIANTS
+                + r"|$)",
+                infl_part,
+            )
             if matches and len(matches) > 1:
                 is_dashed = True
                 dashed_parts = {}
                 parts_separators = {}
                 for i_dashed_part, infl_dashed_item in enumerate(matches):
-                    dashed_parts[i_dashed_part] = _separate_part_variants(name_part=infl_dashed_item[0], part_variant_suffix=part_variant_suffix)
+                    dashed_parts[i_dashed_part] = _separate_part_variants(
+                        name_part=infl_dashed_item[0],
+                        part_variant_suffix=part_variant_suffix,
+                    )
                     parts_separators[i_dashed_part] = infl_dashed_item[1]
                 inflection_parts[i_infl_part].update(
-                    combine_special_separated_parts(special_parts=dashed_parts, special_separators=parts_separators)
+                    combine_special_separated_parts(
+                        special_parts=dashed_parts, special_separators=parts_separators
+                    )
                 )
             if is_dashed == False and is_spec_char == False:
-                inflection_parts[i_infl_part].update(_separate_part_variants(name_part=infl_part, part_variant_suffix=part_variant_suffix))
-
+                inflection_parts[i_infl_part].update(
+                    _separate_part_variants(
+                        name_part=infl_part, part_variant_suffix=part_variant_suffix
+                    )
+                )
 
         built_name_inflections, built_subnames = build_name_variant(
             line[2][-1] if len(line[2]) else "",
@@ -398,12 +417,12 @@ def process_taggednames(f_taggednames, strip_nameflags=True):
     subnames = set()
     named_inflections = {}
 
-    path_cached_subnames = os.path.join(args.outdir, CACHED_SUBNAMES)
-    path_cached_inflectednames = os.path.join(args.outdir, CACHED_INFLECTEDNAMES)
+    path_cached_subnames = path_join(args.outdir, CACHED_SUBNAMES)
+    path_cached_inflectednames = path_join(args.outdir, CACHED_INFLECTEDNAMES)
     if (
         not args.clean_cached
-        and os.path.isfile(path_cached_subnames)
-        and os.path.isfile(path_cached_inflectednames)
+        and isfile(path_cached_subnames)
+        and isfile(path_cached_inflectednames)
     ):
         subnames = pickle_load(path_cached_subnames)
         named_inflections = pickle_load(path_cached_inflectednames)
@@ -412,7 +431,7 @@ def process_taggednames(f_taggednames, strip_nameflags=True):
         try:
             with open(f_taggednames) as f:
                 results = pool.starmap(
-                    process_name_inflections, zip(f, itertools.repeat(strip_nameflags))
+                    process_name_inflections, zip(f, repeat(strip_nameflags))
                 )
                 for name, inflections, name_subnames in results:
                     if name not in named_inflections:
@@ -500,20 +519,12 @@ def process_person_common(person_type, _fields, _line_num, confidence_threshold)
 def add_to_namelist(
     _key: str, _nametype: str, _value: str, _type_set: Set[str], _fields: List[str]
 ) -> None:
-    length = _key.count(" ") + 1
-    if length > 1 or is_capital_dominant(name=_key):
-        namelist.add_variants(
-            key=_key,
-            nametype=_nametype,
-            link=_value,
-            type_set=_type_set,
-            kb_item_cols=_fields,
-        )
-
-
-def is_capital_dominant(name):
-    return (name in word_freq and word_freq[name] > 0.5) or (
-        (name[:1].lower() + name[1:]) not in word_freq
+    namelist.add_variants(
+        key=_key,
+        nametype=_nametype,
+        link=_value,
+        type_set=_type_set,
+        kb_item_cols=_fields,
     )
 
 
@@ -541,14 +552,10 @@ def process_uri(_fields, _line_num):
         namelist.add_uri(u, _line_num)
 
 
-def getLineColumns(l):
-    return l.strip("\n").split("\t")
-
-
 def loadListFromFile(fname: str, use_lang_prefix: bool = True) -> List:
     try:
         with open(
-            os.path.join(args.indir, args.lang, f"{args.lang}_{fname}")
+            path_join(args.indir, args.lang, f"{args.lang}_{fname}")
             if use_lang_prefix
             else fname
         ) as fh:
@@ -558,59 +565,28 @@ def loadListFromFile(fname: str, use_lang_prefix: bool = True) -> List:
             'WARNING: File "{}" was not found => continue with empty list.'.format(
                 fname
             ),
-            file=sys.stderr,
+            file=stderr,
             flush=True,
         )
         return []
-
-
-def loadWordFreq():
-    try:
-        fname = os.path.join(args.indir, f"{args.lang}/{args.lang}_media.wc")
-        with open(fname, errors="ignore") as frequency_file, open(
-            f"{args.outdir}/freq.log", "w"
-        ) as dbg_f:
-            word_freq_total = dict()
-            for l in frequency_file:
-                word, freq = l.rstrip().split(
-                    "\t"
-                )  # must be rstrip() only due to space as a key in input file
-                word_freq[word] = int(freq)
-                k_freq_total = word.lower()
-                if k_freq_total not in word_freq_total:
-                    word_freq_total[k_freq_total] = 0
-                word_freq_total[k_freq_total] += int(freq)
-            for k in word_freq:
-                word_freq[k] = word_freq[k] / word_freq_total[k.lower()]
-                dbg_f.write("{}\t{}\n".format(k, str(word_freq[k])))
-            dbg_f.close()
-    except FileNotFoundError:
-        print(
-            'WARNING: Word frequence file "{}" was not found => ignoring word frequency.'.format(
-                fname
-            ),
-            file=sys.stderr,
-            flush=True,
-        )
-    gc.collect()
 
 
 def _separate_part_variants(name_part: str, part_variant_suffix: str = "") -> Set[str]:
     part_variants = set()
     for part_variant in name_part.split("/"):
         part_variants.add(
-            regex.sub(r"(\p{L}*)(\[[^\]]+\])?", r"\g<1>", part_variant) + part_variant_suffix
+            regex.sub(r"(\p{L}*)(\[[^\]]+\])?", r"\g<1>", part_variant)
+            + part_variant_suffix
         )
     return part_variants
-
 
 
 if __name__ == "__main__":
     args = parse_args()
 
-    if not args.indir or not os.path.isdir(args.indir):
-        args.indir = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), "inputs/{}".format(args.lang)
+    if not args.indir or not isdir(args.indir):
+        args.indir = path_join(
+            dirname(realpath(__file__)), "inputs/{}".format(args.lang)
         )
 
     # automata variants config
@@ -649,12 +625,10 @@ if __name__ == "__main__":
         # loading the list of all nationalities
         # lst_nationalities = loadListFromFile("nationalities.lst")
 
-        # load version number (string) of KB
-        with open(args.kb) as kb_version_file:
-            kb_version = kb_version_file.readline().strip()
-
         # load frequency for words
-        loadWordFreq()
+        namelist.load_frequency(
+            outdir=args.outdir, indir=args.indir, clean_cached=args.clean_cached
+        )
 
         namelist.set_alternatives(process_taggednames(args.taggednames, False))
         gc.collect()

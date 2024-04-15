@@ -3,14 +3,20 @@
 
 import logging
 import regex
-import os
 import sys
 
 from abc import ABC, abstractmethod
 from itertools import permutations
+from os.path import join as path_join
+from sys import stdout, stderr
 from typing import Dict, List, Set, TextIO
 
 from automata.src.metrics_knowledge_base import KnowledgeBase
+from automata.src.word_frequency import (
+    FrequencyMeasures,
+    WordFrequency,
+    WordFrequencyInputNotReadable,
+)
 from libs.automata_variants import AutomataVariants
 from libs.utils import remove_accent
 from libs.entities.entity_loader import EntityLoader
@@ -53,6 +59,7 @@ class Namelist(ABC):
         self._alternatives = {}
         self._automata_variants = AutomataVariants.DEFAULT
         self._kb_struct = None
+        self._word_frequency: Dict[str, FrequencyMeasures] = None
         self._subnames = set()
 
         self._name_variants = set()
@@ -195,10 +202,10 @@ class Namelist(ABC):
         self,
         include_extra: bool = False,
         sort_links: bool = False,
-        outfile: TextIO = sys.stdout,
+        outfile: TextIO = stdout,
     ) -> None:
         """
-        Generate namelist and print it to given output file (sys.stdout as default).
+        Generate namelist and print it to given output file (stdout as default).
 
         Args:
                 include_extra: Adds some specific items to namelist (for example all subnames will be marked with "N")
@@ -214,6 +221,34 @@ class Namelist(ABC):
                 if include_n:
                     links.append("N")
             print(key + "\t" + ";".join(links), file=outfile)
+
+    def is_capital_dominant(self, name: str) -> bool:
+        if not isinstance(name, str):
+            raise TypeError(
+                f'Type conflict - expected "str"; got "{type(name).__name__}".'
+            )
+        if name.lower() not in self._word_frequency:
+            return True
+        return (
+            name.title() in self._word_frequency
+            and self._word_frequency[name.title()].uplow >= 0.5
+        )
+
+    def load_frequency(
+        self, outdir: str, indir: str, clean_cached: bool = False
+    ) -> None:
+        freq_file = path_join(indir, self._lang, f"{self._lang}_media.wc")
+        try:
+            wf = WordFrequency(filepath=freq_file)
+            self._word_frequency = wf.load_frequency(
+                outfile=path_join(outdir, "word_frequency.json"),
+                clean_cached=clean_cached,
+            )
+        except WordFrequencyInputNotReadable:
+            print(
+                f'WARNING: Word frequence file "{freq_file}" was not found => ignoring word frequency.',
+                file=stderr,
+            )
 
     def _add(self, key: str) -> None:
         """
@@ -242,21 +277,30 @@ class Namelist(ABC):
         """
 
         for name_variant in self._name_variants:
-            key = regex.sub(
-                r"#[A-Za-z0-9]+E?(?=\u200b| |,|\.|-|–|$)", "", name_variant
-            )  # \u200b = zero width space
-            key = regex.sub(r"\u200b", "", key)
-
             # temporary fix for mountains like K#L12, K#L2, ... (will be solved
             # by extra separator by M. Dočekal)
-            key = regex.sub(r"#L(?=[0-9])", "", key)
+            key = regex.sub(r"#L(?=[0-9])", "", name_variant)
             # temporary fix for ordinals like <something> 1.#4díl, ... (will be
             # solved by extra separator by M. Dočekal)
             key = regex.sub(r"(?<=\.)#4", "", key)
 
+            n_parts = key.count("#")
+
+            key = regex.sub(
+                r"#[A-Za-z0-9]+E?(?=\u200b| |,|\.|-|–|$)", "", key
+            )  # \u200b = zero width space
+            key = regex.sub(r"\u200b", "", key)
+
             key = key.strip()
 
             key = self._get_key_by_atm_variant(key=key)
+
+            if n_parts == 0:
+                n_parts = key.count(" ") + 1
+
+            if n_parts < 2 and not self.is_capital_dominant(name=key):
+                logging.debug(f'Skipping name "{key}" of ("{name_variant}")')
+                continue
 
             # removing entities that begin with '-. or space
             if len(regex.findall(r"^[ '-\.]", key)) != 0:
@@ -344,7 +388,7 @@ class Namelist(ABC):
                 # Melozzo da Forlì -> Melozzo da Forlí
                 name = regex.sub("ì", "í", name)
             if "Ì" in name:
-                grave = True
+                with_grave = True
                 name = regex.sub("Ì", "Í", name)  # FORLÌ -> FORLÍ
             if with_grave:
                 self._add(name)
@@ -404,23 +448,23 @@ class Namelist(ABC):
             self._add(name_adjusted)
 
             # Turner, J.M.W -> Turner,J.M.W
-            #name_adjusted = regex.sub(
+            # name_adjusted = regex.sub(
             #    r"(?<=,) (\p{Lu}\.)", r"\g<1>", name_adjusted
-            #)
-            #self._add(name_adjusted)
+            # )
+            # self._add(name_adjusted)
 
             # J.M.W. Turner -> JMW Turner
             # Turner,J.M.W -> Turner,JMW
-            #name_adjusted = regex.sub(
+            # name_adjusted = regex.sub(
             #    r"\.(%s?\u200b?)" % self.RE_FLAG_NAMES, r"\g<1>", name_adjusted
-            #)
-            #self._add(name_adjusted)
+            # )
+            # self._add(name_adjusted)
 
             # Turner,JMW -> Turner, JMW
-            #name_adjusted = regex.sub(
+            # name_adjusted = regex.sub(
             #    r"(?<=,)(\p{Lu})", r" \g<1>", name_adjusted
-            #)
-            #self._add(name_adjusted)
+            # )
+            # self._add(name_adjusted)
 
         if self._debug_mode:
             self._debug_msg_name_variants(original_name_variants=tmp_name_variants)
@@ -501,17 +545,20 @@ class Namelist(ABC):
                 for fn_possible_other in fn_possible_others:
                     fn_possible_other_parts = fn_possible_other.split("#")
                     fn_possible_others_abbr += (
-                        fn_possible_other[0] + "." +
-                        (
+                        fn_possible_other[0]
+                        + "."
+                        + (
                             "#" + fn_possible_other_parts[-1]
                             if len(fn_possible_other_parts) > 1
                             else ""
-                        ) + " "
-                     )
+                        )
+                        + " "
+                    )
                 fn_possible_others_abbr = fn_possible_others_abbr.strip()
-            logging.debug(f"Abbreviations for other names of key \"{key}\": \"{fn_possible_others_full}\" -> \"{fn_possible_others_abbr}\"")
+            logging.debug(
+                f'Abbreviations for other names of key "{key}": "{fn_possible_others_full}" -> "{fn_possible_others_abbr}"'
+            )
 
-            sn_full_variants = {}
             sn_unknowns = " ".join(nameparts["n_unknowns"][i:])
             if sn_unknowns:
                 sn_unknowns += " "
@@ -538,9 +585,13 @@ class Namelist(ABC):
         sep_special: str,
         sn_full: str,
     ) -> None:
-        flags_fn_1st = fn_1st.split('#')
-        fn_1st_abbr = f"{fn_1st[0]}.{('#' + flags_fn_1st[-1]) if len(flags_fn_1st) > 1 else ''}"
-        logging.debug(f"Abbreviations for first name of key \"{fn_1st} {sn_full}\": \"{fn_1st}\" -> \"{fn_1st_abbr}\"")
+        flags_fn_1st = fn_1st.split("#")
+        fn_1st_abbr = (
+            f"{fn_1st[0]}.{('#' + flags_fn_1st[-1]) if len(flags_fn_1st) > 1 else ''}"
+        )
+        logging.debug(
+            f'Abbreviations for first name of key "{fn_1st} {sn_full}": "{fn_1st}" -> "{fn_1st_abbr}"'
+        )
 
         if self._debug_mode:
             tmp_name_variants = self._name_variants.copy()

@@ -51,7 +51,7 @@ def to_remove_accent(input_str):
 def print_help():
 	''' Print help. '''
 
-	print'''
+	print('''
 Name:      Autocomplete
 Author:    Peter Hostacny (xhosta03@stud.fit.vutbr.cz)
 
@@ -65,10 +65,9 @@ Options:
   -l, --lowercase      -> Convert input to lowercase.
   -m NUMBER            -> Define number of returned entities (default value is 5).
   -r, --remove-accent  -> Remove accent from input.
-'''
+''')
 
 
-		
 def process_arguments(args):
 	''' Parse arguments from the command line and evaluate them. '''
 
@@ -140,8 +139,8 @@ def autocomplete(dictionary, input_str, max_entity_count=5, remove_accent=False,
 		sys.stderr.write(__file__ + ": max_entity_count must be in the range 0 < x <= 300000\n")
 		return
 
-        seek_names = figa.marker(True, False, True, max_entity_count, return_all)
-        seek_names.load_dict(dictionary)
+	seek_names = figa.marker(True, False, True, max_entity_count, return_all)
+	seek_names.load_dict(dictionary)
 
 	if remove_accent:
 		input_str = to_remove_accent(input_str)

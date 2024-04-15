@@ -185,7 +185,3 @@ class Persons(ABC):
 				names.add(role.title()) # For english - every first letter is upper
 
 		return names
-
-	@classmethod
-	def add_to_dictionary_by_config(self, subname, dictionary, config = AutomataVariants.DEFAULT):
-		dictionary.add(subname.lower() if AutomataVariants.isLowercase(config) else subname)
