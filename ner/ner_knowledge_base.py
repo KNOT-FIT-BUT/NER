@@ -59,8 +59,8 @@ class KnowledgeBase(ABC):
 		'''
 
 		KB_shm = SourceFileLoader('KB_shm', os.path.join(DIRPATH_KB_DAEMON,"KB_shm.py")).load_module()
-		self.kb_shm_name = kb_shm_name.encode()
-		self.kb_shm = KB_shm.KB_shm(self.kb_shm_name)
+		self.kb_shm_name = kb_shm_name
+		self.kb_shm = KB_shm.KB_shm(self.kb_shm_name.encode())
 		self.kb_daemon = None
 
 

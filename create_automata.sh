@@ -204,7 +204,7 @@ fi
 echo "DOWNLOADING other input files..."
 mkdir -p "${DIR_INPUTS}"
 
-FILES_TO_DOWNLOAD="${LANG}_media.wc ${LANG}_stop_list.lst ${LANG}_allow_list.lst ${LANG}_freq_terms.lst"
+FILES_TO_DOWNLOAD="${LANG}_CWC.wc ${LANG}_stop_list.lst ${LANG}_allow_list.lst ${LANG}_freq_terms.lst"
 for INFILE in $FILES_TO_DOWNLOAD
 do
   FILE_PATH="${DIR_INPUTS}/${INFILE}"

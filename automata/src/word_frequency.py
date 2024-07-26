@@ -62,7 +62,10 @@ class WordFrequency:
                     count = int(count)
                 except ValueError:
                     raise WordFrequencyInputBadFormat()
-                word_count[word] = count
+                if word not in word_count:
+                    word_count[word] = count
+                else:
+                    word_count[word] += count
 
                 base_word = word.lower()
                 if base_word not in word_count_all:

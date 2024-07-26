@@ -100,8 +100,23 @@ getFullPath()
 
 
 run() {
-  >&2 echo -e "[`date \+\"%F %T\"`]\tRunning command: ${@}"
-  eval "${@}"
+  >&2 echo -e "[`date \+\"%F %T\"`]\tRunning command: ${1}"
+  eval "${1}"
+  errcode=$?
+  if test "${errcode}" != "0"
+  then
+    if test "${2}" != "" && test $2 != 0
+    then
+      if test "${3}" != ""
+      then
+        >&2 echo "${3} [error code \"${errcode}\" of command ${1}]"
+      fi
+      exit ${2}
+    else
+      >&2 echo "Unexpected error while running \"${1}\" - see eventual previous error messages."
+      exit 127
+    fi
+  fi
 }
 
 
@@ -431,18 +446,19 @@ if $ATM_COMMON || $ATM_LOWERCASE || $ATM_URI
 then
   #=====================================================================
   # vytvoreni seznamu klicu entit v KB, pridani fragmentu jmen a prijmeni entit a zajmen
+  ERR_PARAMS=(30 "Error while generating intext file.")
   F_INTEXT_BASE="${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}intext"
   if $ATM_COMMON
   then
-    run "${SCRIPT_KB2NAMELIST} | tr -s ' ' > \"${F_INTEXT_BASE}\""
+    run "${SCRIPT_KB2NAMELIST} | tr -s ' ' > \"${F_INTEXT_BASE}\"" "${ERR_PARAMS[@]}"
   fi
   if $ATM_LOWERCASE
   then
-    run "${SCRIPT_KB2NAMELIST} -d | tr -s ' ' > \"${F_INTEXT_BASE}_lower\""
+    run "${SCRIPT_KB2NAMELIST} -d | tr -s ' ' > \"${F_INTEXT_BASE}_lower\"" "${ERR_PARAMS[@]}"
   fi
   if $ATM_URI
   then
-    run "${SCRIPT_KB2NAMELIST} -u > \"${F_INTEXT_BASE}_uri\""
+    run "${SCRIPT_KB2NAMELIST} -u > \"${F_INTEXT_BASE}_uri\"" "${ERR_PARAMS[@]}"
   fi
 
   #=====================================================================
@@ -499,7 +515,7 @@ fi
 if ${ATM_AUTOCOMPLETE}
 then
   F_INTEXT_AUTO="${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}intext_auto"
-  run "${SCRIPT_KB2NAMELIST} -a | tr -s ' ' | grep -v -e \"[^;]N\" > \"${F_INTEXT_AUTO}\""
+  run "${SCRIPT_KB2NAMELIST} -a | tr -s ' ' | grep -v -e \"[^;]N\" > \"${F_INTEXT_AUTO}\"" 30 "Error while generating intext file."
   cat "${F_INTEXT_AUTO}" | grep -P "^person:" | sed -r 's/^person:\t//' > "${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}p_intext"
   cat "${F_INTEXT_AUTO}" | grep -P "^geographical:" | sed -r 's/^geographical:\t//' > "${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}l_intext"
   cut -f2- "${F_INTEXT_AUTO}" > "${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}x_intext"

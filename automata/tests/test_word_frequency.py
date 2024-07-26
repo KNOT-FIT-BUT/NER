@@ -66,9 +66,12 @@ class TestWordFrequency(TestCase):
         self._init_input_file(infile=infile, data=input_data)
         wf = WordFrequency(infile)
         data = wf._count_frequency()
-        self.assertEqual(1.0, data["Test"].uplow)
-        self.assertEqual(0.0, data["teST"].uplow)
-        self.assertEqual(False, "test" in data)
+        with self.subTest("key \"Test\""):
+            self.assertEqual(1.0, data["Test"].uplow)
+        with self.subTest("key \"teST\""):
+            self.assertEqual(0.0, data["teST"].uplow)
+        with self.subTest("key \"test\""):
+            self.assertEqual(False, "test" in data)
 
     def test_count_frequency_zero(self) -> None:
         infile = self._get_infile_path()
@@ -77,8 +80,32 @@ class TestWordFrequency(TestCase):
         wf = WordFrequency(infile)
         data = wf._count_frequency()
         for tested_key in input_data.keys():
-            self.assertEqual(0, data[tested_key].uplow)
-            self.assertEqual(0, data[tested_key].all)
+            with self.subTest("uplow variants frequency"):
+                self.assertEqual(0, data[tested_key].uplow)
+            with self.subTest("all variants frequency"):
+                self.assertEqual(0, data[tested_key].all)
+
+    def test_count_frequency_multiple_lines(self) -> None:
+        infile = self._get_infile_path()
+        with open(infile, "w") as ftest:
+            ftest.write("test\t4\n")
+            ftest.write("test\t6\n")
+            ftest.write("Test\t10\n")
+            ftest.write("Test\t7\n")
+            ftest.write("Test\t3\n")
+            ftest.write("tESt\t3\n")
+            ftest.write("tESt\t4\n")
+            ftest.write("tEST\t3\n")
+        wf = WordFrequency(infile)
+        data = wf._count_frequency()
+        with self.subTest("uplow variants frequency for key \"test\""):
+            self.assertEqual(1/3, data["test"].uplow, data)
+        with self.subTest("uplow variants frequency for key \"Test\""):
+            self.assertEqual(2/3, data["Test"].uplow, data)
+        with self.subTest("all variants frequency for key \"test\""):
+            self.assertEqual(1/4, data["test"].all, data)
+        with self.subTest("all variants frequency for key \"Test\""):
+            self.assertEqual(1/2, data["Test"].all, data)
 
     def test_count_frequency_bad_file_format(self) -> None:
         self._test_count_frequency_bad_format(file_content="test")
@@ -153,16 +180,19 @@ class TestWordFrequency(TestCase):
             divider += v
         self.assertEqual(117, divider)
         for k, v in data.items():
-            self.assertEqual(self._default_data[k] / divider, data[k].all)
+            with self.subTest(f"key \"{k}\""):
+                self.assertEqual(self._default_data[k] / divider, data[k].all)
 
     def _assert_count_frequency_uplow(self, data: Dict[str, FrequencyMeasures]) -> None:
         divider = self._default_data["test"] + self._default_data["Test"]
         self.assertEqual(110, divider)
         for tested_key in ["test", "Test"]:
-            self.assertEqual(
-                self._default_data[tested_key] / divider, data[tested_key].uplow
-            )
-        self.assertEqual(0, data["TEST"].uplow)
+            with self.subTest(f"key \"{tested_key}\""):
+                self.assertEqual(
+                    self._default_data[tested_key] / divider, data[tested_key].uplow
+                )
+        with self.subTest("key \"TEST\""):
+            self.assertEqual(0, data["TEST"].uplow)
 
     def _get_word_frequency_instance(self) -> WordFrequency:
         infile = self._get_infile_path()
@@ -186,13 +216,16 @@ class TestWordFrequency(TestCase):
         self.assertEqual(0, len(self._listdir(dir=self._get_files_basedir())))
 
         wf = self._get_word_frequency_instance()
-        self.assertEqual(
-            [self._get_infile_path()], self._listdir(dir=self._get_files_basedir())
-        )
+        with self.subTest("check of existing files"):
+            self.assertEqual(
+                [self._get_infile_path()], self._listdir(dir=self._get_files_basedir())
+            )
 
         data = wf.load_frequency(outfile=arg)
-        self._assert_count_frequency_uplow(data=data)
-        self._assert_count_frequency_all(data=data)
+        with self.subTest("uplow variants frequency"):
+            self._assert_count_frequency_uplow(data=data)
+        with self.subTest("all variants frequency"):
+            self._assert_count_frequency_all(data=data)
 
         return data
 
@@ -210,11 +243,14 @@ class TestWordFrequency(TestCase):
         wf = self._get_word_frequency_instance()
         data = wf.load_frequency(outfile=outfile, clean_cached=clean_cached)
 
-        self._assert_count_frequency_uplow(data=data)
-        self._assert_count_frequency_all(data=data)
-        self.assertEqual(
-            [self._get_infile_path(), outfile],
-            self._listdir(dir=self._get_files_basedir()),
-        )
+        with self.subTest("uplow variants frequency"):
+            self._assert_count_frequency_uplow(data=data)
+        with self.subTest("all variants frequeny"):
+            self._assert_count_frequency_all(data=data)
+        with self.subTest("check of existing files"):
+            self.assertEqual(
+                [self._get_infile_path(), outfile],
+                self._listdir(dir=self._get_files_basedir()),
+            )
 
         return dump_modify

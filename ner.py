@@ -31,7 +31,6 @@ limitations under the License.
 import sys
 
 import argparse
-import collections
 import json
 import os
 import re
@@ -39,6 +38,8 @@ import requests
 import tarfile
 import uuid
 
+from collections import namedtuple
+from collections.abc import Iterable
 from urllib.request import urlopen
 
 from name_recognizer import name_recognizer as name_recognizer
@@ -372,7 +373,7 @@ def resolve_coreferences(entities, context, print_all, register):
 def get_nearest_predecessor(_entity, _candidates):
     """ Returns the nearest predecessor for a given entity from a given list of candidates. """
     assert isinstance(_entity, Entity)
-    assert isinstance(_candidates, collections.Iterable) # iterable of Entity
+    assert isinstance(_candidates, Iterable) # iterable of Entity
 
     # sorting candidates according to the distance from a given entity # NOTE: Nešlo by to napsat lépe?
     candidates = sorted(_candidates, key=lambda candidate: _entity.start_offset - candidate.start_offset)
@@ -384,7 +385,7 @@ def get_nearest_predecessor(_entity, _candidates):
 def get_nearest_entity(_entity, _candidates):
     """ Returns the nearest entity for a given entity from a given list of candidates. """
     assert isinstance(_entity, Entity)
-    assert isinstance(_candidates, collections.Iterable) # iterable of Entity
+    assert isinstance(_candidates, Iterable) # iterable of Entity
 
     # sorting candidates according to the distance from a given entity
     candidates = sorted(_candidates, key=lambda candidate: abs(_entity.start_offset - candidate.start_offset))
@@ -392,7 +393,7 @@ def get_nearest_entity(_entity, _candidates):
     return candidates[0].preferred_sense
 
 
-FigaOutput = collections.namedtuple("FigaOutput", "kb_rows start_offset end_offset fragment flag")
+FigaOutput = namedtuple("FigaOutput", "kb_rows start_offset end_offset fragment flag")
 
 
 def parseFigaOutput(figa_output):

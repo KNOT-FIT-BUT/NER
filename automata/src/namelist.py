@@ -31,6 +31,7 @@ class Namelist(ABC):
     RE_FLAG_ONLY1ST_FIRSTNAME = r"(?:#j?[GI]E?)"
     RE_FLAG_FIRSTNAME = r"(?:#j?[G]E?)"
     RE_FLAG_SURE_SURNAME = r"(?:#j?[^GI]E?)"
+    RE_FLAGNAME_SEPARATOR = r"(?:\s|\u200b|-)"
 
     def __init__(self, lang: str) -> None:
         self._lang = lang
@@ -227,17 +228,22 @@ class Namelist(ABC):
             raise TypeError(
                 f'Type conflict - expected "str"; got "{type(name).__name__}".'
             )
+        if name[0].title() != name[0]:
+            logging.debug(f'is_capital_dominant = False due to lowercase for name "{name}"')
+            return False
+        if name.title() != name:
+            return True
         if name.lower() not in self._word_frequency:
             return True
         return (
-            name.title() in self._word_frequency
-            and self._word_frequency[name.title()].uplow >= 0.5
+            name in self._word_frequency
+            and self._word_frequency[name].uplow >= 0.5
         )
 
     def load_frequency(
         self, outdir: str, indir: str, clean_cached: bool = False
     ) -> None:
-        freq_file = path_join(indir, self._lang, f"{self._lang}_media.wc")
+        freq_file = path_join(indir, self._lang, f"{self._lang}_CWC.wc")
         try:
             wf = WordFrequency(filepath=freq_file)
             self._word_frequency = wf.load_frequency(
@@ -265,6 +271,14 @@ class Namelist(ABC):
             # one)
             self._name_variants.add(regex.sub(r"\u200b *", " ", key))
 
+    def _remove_flags(self, name: str) -> str:
+        name = regex.sub(
+            r"#[A-Za-z0-9]+E?(?=\u200b| |,|\.|-|–|$)", "", name
+        )  # \u200b = zero width space
+        name = regex.sub(r"\u200b", "", name)
+
+        return name.strip()
+
     def _save_name_variants_to_namelist(self, link: str, type_set: Set[str]) -> None:
         """
         Save all variants of name to namelist dictionary.
@@ -284,22 +298,21 @@ class Namelist(ABC):
             # solved by extra separator by M. Dočekal)
             key = regex.sub(r"(?<=\.)#4", "", key)
 
+            preferred_name = False
             n_parts = key.count("#")
+            if n_parts == 1:
+                if regex.search(r"#j?[LS]E?", key):
+                    preferred_name = True
 
-            key = regex.sub(
-                r"#[A-Za-z0-9]+E?(?=\u200b| |,|\.|-|–|$)", "", key
-            )  # \u200b = zero width space
-            key = regex.sub(r"\u200b", "", key)
-
-            key = key.strip()
-
+            key_with_flags=key
+            key = self._remove_flags(name=key)
             key = self._get_key_by_atm_variant(key=key)
 
-            if n_parts == 0:
-                n_parts = key.count(" ") + 1
-
-            if n_parts < 2 and not self.is_capital_dominant(name=key):
-                logging.debug(f'Skipping name "{key}" of ("{name_variant}")')
+            if n_parts == 1:
+              is_capital_dominant = self.is_capital_dominant(name=key)
+              logging.debug(f'Name "{key}" (of "{key_with_flags}") - is preferred = {preferred_name}; is capital dominant = {is_capital_dominant} (frequency: {self._get_debug_frequency_info(name=key)})')
+              if not (preferred_name or is_capital_dominant):
+                logging.debug(f'Skipping name "{key}" of ("{key_with_flags}")')
                 continue
 
             # removing entities that begin with '-. or space
@@ -527,6 +540,7 @@ class Namelist(ABC):
             "#SE",
             "#jS",
             "#jSE",
+            "#R",
         ]:
             logging.debug(
                 f'Early termination of _add_tagged_person_alternatives_variants() for "{key}" (nameparts: {nameparts})'
@@ -555,18 +569,19 @@ class Namelist(ABC):
                         + " "
                     )
                 fn_possible_others_abbr = fn_possible_others_abbr.strip()
-            logging.debug(
-                f'Abbreviations for other names of key "{key}": "{fn_possible_others_full}" -> "{fn_possible_others_abbr}"'
-            )
 
             sn_unknowns = " ".join(nameparts["n_unknowns"][i:])
             if sn_unknowns:
                 sn_unknowns += " "
+            sn_full = nameparts["sn_full"]
 
-            sn_full_alternatives = {
-                sn_unknowns + nameparts["sn_full"],
-                sn_unknowns + nameparts["n_partonyms"] + nameparts["sn_full"],
-            }
+            sn_full_alternatives = {sn_full}
+
+            for sn_full_alternative in sn_full_alternatives.copy():
+                sn_full_alternatives.update({
+                    sn_unknowns + sn_full_alternative,
+                    sn_unknowns + nameparts["n_partonyms"] + sn_full_alternative,
+                })
 
             for sn_full in sn_full_alternatives:
                 self._add_tagged_person_variants(
@@ -589,12 +604,10 @@ class Namelist(ABC):
         fn_1st_abbr = (
             f"{fn_1st[0]}.{('#' + flags_fn_1st[-1]) if len(flags_fn_1st) > 1 else ''}"
         )
-        logging.debug(
-            f'Abbreviations for first name of key "{fn_1st} {sn_full}": "{fn_1st}" -> "{fn_1st_abbr}"'
-        )
 
         if self._debug_mode:
             tmp_name_variants = self._name_variants.copy()
+        surname_tags = regex.findall(r"#j?([A-Z])", sn_full)
         # For all of following format exaplaining comments of additions let us
         # assume, that Johann Gottfried Bernhard is firstnames and a surname is
         # Bach only.
@@ -608,19 +621,48 @@ class Namelist(ABC):
         self._add("{} {}".format(fn_1st, sn_full))
         # J. Bach
         self._add("{} {}".format(fn_1st_abbr, sn_full))
-        self._add(
-            "{}, {}{}{}".format(sn_full, fn_1st, sep_special, fn_others_full)
-        )  # Bach, Johann Gottfried Bernhard
-        # Bach, Johann G. B.
-        self._add("{}, {}{}{}".format(sn_full, fn_1st, sep_special, fn_others_abbr))
-        # Bach, J. G. B.
-        self._add(
-            "{}, {}{}{}".format(sn_full, fn_1st_abbr, sep_special, fn_others_abbr)
-        )
-        # Bach, Johann
-        self._add("{}, {}".format(sn_full, fn_1st))
-        # Bach, J.
-        self._add("{}, {}".format(sn_full, fn_1st_abbr))
+        if 'R' not in surname_tags:
+            self._add(
+                "{}, {}{}{}".format(sn_full, fn_1st, sep_special, fn_others_full)
+            )  # Bach, Johann Gottfried Bernhard
+            # Bach, Johann G. B.
+            self._add("{}, {}{}{}".format(sn_full, fn_1st, sep_special, fn_others_abbr))
+            # Bach, J. G. B.
+            self._add(
+                "{}, {}{}{}".format(sn_full, fn_1st_abbr, sep_special, fn_others_abbr)
+            )
+            # Bach, Johann
+            self._add("{}, {}".format(sn_full, fn_1st))
+            # Bach, J.
+            self._add("{}, {}".format(sn_full, fn_1st_abbr))
+        # Karel I. Veliký -> Karel I.
+        surname_parts = regex.search(r"%s*(?P<number>[IVXLCDM]+\.#R)%s*(?P<m_name>(?:\p{Lu}')?\p{Lu}\p{L}+#j?ME?$)" % (self.RE_FLAGNAME_SEPARATOR, self.RE_FLAGNAME_SEPARATOR), sn_full)
+        if surname_parts:
+            number = surname_parts.group("number")
+            self._add(f"{fn_1st} {number}")
+        # Bach
+        surnames = regex.findall(r"(?<=^|%s)(?P<namewithflag>(?P<name>(?:\p{Lu}')?\p{Lu}\p{L}+)(?P<flag>#j?SE?))" % self.RE_FLAGNAME_SEPARATOR, sn_full)
+        for surname_tuple in surnames:
+            surname_with_flags = surname_tuple[0]
+            surname_without_flags = surname_tuple[1]
+            if self.is_capital_dominant(name=surname_without_flags):
+                self._add(surname_with_flags)
+                txt_action = "Added"
+            else:
+                txt_action = "Skipped"
+            logging.debug(f"{txt_action} surname: {surname_with_flags} (frequency: {self._get_debug_frequency_info(name=surname_without_flags)})")
+        # Ernest T. Seton
+        if len(surnames) > 1:
+            abbr_surnames = f"{surnames[0][1][0]}.{surnames[0][2]}"
+            full_surnames = " ".join(x[0] for x in surnames[1:])
+            self._add("{} {}{}{} {}".format(fn_1st, fn_others_full, sep_special, abbr_surnames, full_surnames))
+            self._add("{} {}{}{} {}".format(fn_1st_abbr, fn_others_abbr, sep_special, abbr_surnames, full_surnames))
+            if len(surnames) > 2:
+                abbr_surnames = " ".join(f"{x[1][0]}.{x[2]}" for x in surnames[:-1])
+                full_surnames = surnames[-1][0]
+                self._add("{} {}{}{} {}".format(fn_1st, fn_others_full, sep_special, abbr_surnames, full_surnames))
+                self._add("{} {}{}{} {}".format(fn_1st_abbr, fn_others_abbr, sep_special, abbr_surnames, full_surnames))
+
         if self._debug_mode:
             self._debug_msg_name_variants(original_name_variants=tmp_name_variants)
 
@@ -763,6 +805,15 @@ class Namelist(ABC):
 
         return self._namelist
 
+    def _get_debug_frequency_info(self, name: str) -> str:
+        if name.title() in self._word_frequency:
+            freq = self._word_frequency[name.title()].uplow
+        elif name.lower() in self._word_frequency:
+            freq = f"available only for lowercases => calculated: {1 - self._word_frequency[name.lower()].uplow}"
+        else:
+            freq = "NA even for lowercases (=> it should be added automatically)"
+        return freq
+
     def _get_key_by_atm_variant(self, key: str) -> str:
         if AutomataVariants.NONACCENT & self._automata_variants:
             key = remove_accent(key.lower())
@@ -796,9 +847,9 @@ class Namelist(ABC):
 
     def _get_tagged_person_nameparts(self, key: str) -> Dict:
         nameparts = {}
-        #                       ( <firstname>                           ) ( <other firstnames>                                           )( <partonyms>                         )( <unknowns>                           )( <surnames>                   )
+        #      ( <firstname>                           ) ( <other firstnames>                                           )( <partonyms>                         )( <unknowns>                           )( <surnames>                   )
         parts = regex.search(
-            r"^(?P<firstname>(?:\p{Lu}')?\p{Lu}\p{L}+%s) (?P<others>(?:(?:(?:\p{Lu}')?\p{L}+#I )*(?:\p{Lu}')?\p{L}+%s )*)(?P<partonyms>(?:\p{Lu}\p{L}+#j[PQ] )*)(?P<unknowns>(?:(?:\p{Lu}')?\p{L}+#I )*)(?P<surnames>(?:\p{Lu}')?\p{Lu}\p{L}+(?<surname_flags>%s).*)$"
+            r"^(?P<firstname>(?:\p{Lu}')?\p{Lu}\p{L}+%s) (?P<others>(?:(?:(?:\p{Lu}')?\p{L}+#I )*(?:\p{Lu}')?\p{L}+%s )*)(?P<partonyms>(?:\p{Lu}\p{L}+#j[PQ] )*)(?P<unknowns>(?:(?:\p{Lu}')?\p{L}+#I )*)(?P<surnames>(?:\p{Lu}')?(\p{Lu}\p{L}+|[IVXLCDM]+\.)(?<surname_flags>%s).*)$"
             % (
                 self.RE_FLAG_ONLY1ST_FIRSTNAME,
                 self.RE_FLAG_FIRSTNAME,
