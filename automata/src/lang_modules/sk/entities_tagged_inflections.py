@@ -5,5 +5,8 @@ from automata.src.entities_tagged_inflections import EntitiesTaggedInflections a
 
 
 class EntitiesTaggedInflections(ParentClass):
-	def getProcessCommand(self) -> str:
-		return self._process_namegen()
+    def __init__(self) -> None:
+        self.lang = "sk"
+
+    def get_process_command(self) -> str:
+        return self._process_namegen()

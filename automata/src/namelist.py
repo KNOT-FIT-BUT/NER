@@ -9,8 +9,9 @@ from abc import ABC, abstractmethod
 from itertools import permutations
 from os.path import join as path_join
 from sys import stdout, stderr
-from typing import Dict, List, Set, TextIO
+from typing import Dict, List, Optional, Set, TextIO
 
+from automata.src.dict_tools import DictTools
 from automata.src.metrics_knowledge_base import KnowledgeBase
 from automata.src.word_frequency import (
     FrequencyMeasures,
@@ -95,8 +96,8 @@ class Namelist(ABC):
     def set_allowed(self, lst_allowed: List[str]) -> None:
         self._lst_allowed = lst_allowed
 
-    def set_alternatives(self, alternatives: Dict[str, str]) -> None:
-        self._alternatives = alternatives
+    def add_alternatives(self, alternatives: Dict[str, str]) -> None:
+        DictTools.add_to_dict(dictionary=self._alternatives, added_dict=alternatives)
 
     def set_automata_variants(self, automata_variants: AutomataVariants) -> None:
         self._automata_variants = automata_variants
@@ -229,7 +230,6 @@ class Namelist(ABC):
                 f'Type conflict - expected "str"; got "{type(name).__name__}".'
             )
         if name[0].title() != name[0]:
-            logging.debug(f'is_capital_dominant = False due to lowercase for name "{name}"')
             return False
         if name.title() != name:
             return True
@@ -310,9 +310,8 @@ class Namelist(ABC):
 
             if n_parts == 1:
               is_capital_dominant = self.is_capital_dominant(name=key)
-              logging.debug(f'Name "{key}" (of "{key_with_flags}") - is preferred = {preferred_name}; is capital dominant = {is_capital_dominant} (frequency: {self._get_debug_frequency_info(name=key)})')
               if not (preferred_name or is_capital_dominant):
-                logging.debug(f'Skipping name "{key}" of ("{key_with_flags}")')
+                logging.debug(f'Skipping name "{key}" (original with flags = "{key_with_flags}"; is preferred = {preferred_name}; is_capital_dominant = {is_capital_dominant})')
                 continue
 
             # removing entities that begin with '-. or space
@@ -385,10 +384,11 @@ class Namelist(ABC):
                     )
                 )
 
-    def _debug_msg_name_variants(self, original_name_variants: Set[str]) -> None:
+    def _debug_msg_name_variants(self, original_name_variants: Set[str], name_detail: Optional[str] = None) -> None:
         diff_name_variants = self._name_variants.difference(original_name_variants)
+        debug_entity_detail = f' ({name_detail})' if name_detail else ''
         logging.debug(
-            f'Name variants for "{self._debug_entity}" after {sys._getframe(1).f_code.co_name}(): {diff_name_variants} [+{len(diff_name_variants)}]'
+            f'Name variants for "{self._debug_entity}"{debug_entity_detail} after {sys._getframe(1).f_code.co_name}(): {diff_name_variants} [+{len(diff_name_variants)}]'
         )
 
     def _do_conversions_for_i_with_grave(self) -> None:
@@ -647,10 +647,8 @@ class Namelist(ABC):
             surname_without_flags = surname_tuple[1]
             if self.is_capital_dominant(name=surname_without_flags):
                 self._add(surname_with_flags)
-                txt_action = "Added"
             else:
-                txt_action = "Skipped"
-            logging.debug(f"{txt_action} surname: {surname_with_flags} (frequency: {self._get_debug_frequency_info(name=surname_without_flags)})")
+                logging.debug(f"Skipped surname: {surname_with_flags} (frequency: {self._get_debug_frequency_info(name=surname_without_flags)})")
         # Ernest T. Seton
         if len(surnames) > 1:
             abbr_surnames = f"{surnames[0][1][0]}.{surnames[0][2]}"
@@ -664,7 +662,7 @@ class Namelist(ABC):
                 self._add("{} {}{}{} {}".format(fn_1st_abbr, fn_others_abbr, sep_special, abbr_surnames, full_surnames))
 
         if self._debug_mode:
-            self._debug_msg_name_variants(original_name_variants=tmp_name_variants)
+            self._debug_msg_name_variants(original_name_variants=tmp_name_variants, name_detail=f'surname variant="{sn_full}"')
 
     def _add_untagged_person_variants(self, key: str) -> None:
         if self._debug_mode:

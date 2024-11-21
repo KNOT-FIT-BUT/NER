@@ -18,39 +18,54 @@ limitations under the License.
 """
 
 # Author: Lubomir Otrusina, iotrusina@fit.vutbr.cz
-# Author: Tomáš Volf, ivolf@fit.vutbr.cz
+# Author: Tomáš Volf, ivolf@fit.vut.cz
 #
 # Description: Creates namelist from KB.
 
 import gc
-import pickle
+import importlib
+import logging
 import regex
 
 from argparse import ArgumentParser
 from itertools import repeat
 from multiprocessing import Pool
-from os.path import dirname, isdir, isfile, join as path_join, realpath
+from os.path import (
+    dirname,
+    getmtime,
+    getsize,
+    isdir,
+    isfile,
+    join as path_join,
+    realpath,
+)
 from pandas import to_numeric
 from sys import stderr
-from typing import List, Set, Union
+from typing import Callable, Dict, Iterable, List, Set, Tuple, Union
 
 from automata.src.configs import LANG_DEFAULT
+from automata.src.dict_tools import DictTools
+from automata.src.entities_tagged_inflections import EtiMode
+from automata.src.file_utils import (
+    are_files_with_content,
+    is_file_with_content,
+    json_dump,
+    json_load,
+    pickle_dump,
+    pickle_load,
+)
+from automata.src.namelist import Namelist
 from automata.src import metrics_knowledge_base
 from libs.automata_variants import AutomataVariants
 from libs.entities.entity_loader import EntityLoader
 from libs.module_loader import ModuleLoader
 from libs.utils import remove_accent
 
-# a dictionary for storing results
-dictionary = {}
 
 # multiple values delimiter
 KB_MULTIVALUE_DELIM = metrics_knowledge_base.KB_MULTIVALUE_DELIM
 
 URI_COLUMN_NAMES = ["WIKIPEDIA URL", "WIKIDATA URL", "DBPEDIA URL"]
-
-CACHED_SUBNAMES = "cached_subnames.pkl"
-CACHED_INFLECTEDNAMES = "cached_inflectednames.pkl"
 
 SURNAME_MATCH = regex.compile(
     r"(((?<=^)|(?<=[ ]))(?:(?:da|von)(?:#[^ ]+)? )?((?:\p{Lu}\p{Ll}*(?:#[^- ]+)?-)?(?:\p{Lu}\p{Ll}+(?:#[^- ]+)?))$)"
@@ -60,11 +75,19 @@ SURNAME_MATCH = regex.compile(
 DASHES = "-–—­"
 RE_DASHES = regex.escape(DASHES)
 RE_DASHES_VARIANTS = r"[%s]" % DASHES
+RE_NAMES_SEPARATOR = r"(?: |,|\u200b|%s)" % RE_DASHES_VARIANTS
 
 kb_struct = None
 namelist = None
 persons = None
 UNWANTED_MATCH = None
+debug_mode = True
+
+
+logging.basicConfig(
+    format="[%(asctime)s - %(levelname)s]:   %(message)s",
+    level=logging.DEBUG if debug_mode else logging.WARNING,
+)
 
 
 def parse_args() -> None:
@@ -135,25 +158,15 @@ def load_persons_module(lang: str):
     return EntityLoader.load("persons", lang, "Persons")
 
 
-def pickle_load(fpath):
-    with open(fpath, "rb") as f:
-        return pickle.load(f)
-
-
-def pickle_dump(data, fpath):
-    with open(fpath, "wb") as f:
-        pickle.dump(data, f)
-
-
 """ For firstnames or surnames it creates subnames of each separate name and also all names together """
 
 
-def get_subnames_from_parts(subname_parts):
+def get_subnames_from_parts(subname_parts) -> Set[str]:
     subnames = set()
     subname_all = ""
     for subname_part in subname_parts:
         subname_part = regex.sub(
-            r"#[A-Za-z0-9]+E?( |%s|$)" % RE_DASHES_VARIANTS, r"\g<1>", subname_part
+            r"#[A-Za-z0-9]+E?(%s|$)" % RE_NAMES_SEPARATOR, r"\g<1>", subname_part
         )
         subnames.add(subname_part)
         if subname_all:
@@ -165,6 +178,15 @@ def get_subnames_from_parts(subname_parts):
     return subnames
 
 
+def _name_to_upper(name: str) -> str:
+    if not name:
+       return name
+    name_parts = name.split("#")
+    name_parts[0] = name_parts[0].upper()
+    tmp_name = "#".join(name_parts)
+
+    return tmp_name
+
 def build_name_variant(
     ent_flag,
     strip_nameflags,
@@ -173,14 +195,15 @@ def build_name_variant(
     i_inflection_part,
     stacked_name,
     name_inflections,
-):
+) -> Tuple[Set[str], Set[str], Set[str]]:
     subnames = set()
+    surnames = set()
     separator = ""
     if i_inflection_part < len(inflection_parts):
         for inflected_part in inflection_parts[i_inflection_part]:
             if stacked_name and inflected_part:
                 separator = " "
-            name_inflections, built_subnames = build_name_variant(
+            name_inflections, built_subnames, name_surnames = build_name_variant(
                 ent_flag,
                 strip_nameflags,
                 inflection_parts,
@@ -190,23 +213,25 @@ def build_name_variant(
                 name_inflections,
             )
             subnames |= built_subnames
+            surnames |= name_surnames
     else:
         new_name_inflections = set()
         new_name_inflections.add(stacked_name)
 
         if ent_flag in ["F", "M"]:
             match_one_firstname_surnames = regex.match(
-                r"^([^#]+#[G]E?(?: |"
-                + RE_DASHES_VARIANTS
-                + r"))(?:[^#]+#[G]E?(?: |"
-                + RE_DASHES_VARIANTS
-                + r"))+((?:[^# "
+                r"^([^#]+#j?[G]E?"
+                + RE_NAMES_SEPARATOR
+                + r")(?:[^#]+#j?[G]E?"
+                + RE_NAMES_SEPARATOR
+                + r")+((?:[^# "
                 + RE_DASHES
-                + r"]+#SE?(?: \p{L}+#[L78]E?)*(?: |"
-                + RE_DASHES_VARIANTS
+                + r"]+#j?SE?(?: \p{L}+#[L78]E?)*(?:"
+                + RE_NAMES_SEPARATOR
                 + r"|$))+)",
                 stacked_name,
             )
+
             if match_one_firstname_surnames:
                 firstname_surnames = match_one_firstname_surnames.group(
                     1
@@ -216,38 +241,40 @@ def build_name_variant(
 
             if is_basic_form:
                 firstnames_surnames = regex.match(
-                    r"^((?:[^#]+#[G]E?(?: |"
-                    + RE_DASHES_VARIANTS
-                    + r"))+)((?:[^# "
+                    r"^((?:[^#]+#j?[G]E?"
+                    + RE_NAMES_SEPARATOR
+                    + r")+)((?:[^# "
                     + RE_DASHES
-                    + r"]+#SE?(?: |"
-                    + RE_DASHES_VARIANTS
+                    + r"]+#j?SE?(?:"
+                    + RE_NAMES_SEPARATOR
                     + r"|$))+)((?:[^# "
                     + RE_DASHES
-                    + r"]+#[L78]E?(?: |"
-                    + RE_DASHES_VARIANTS
+                    + r"]+#[L78]E?(?:"
+                    + RE_NAMES_SEPARATOR
                     + r"|$))*)",
                     stacked_name,
                 )
                 if firstnames_surnames:
+                    name_surnames = firstnames_surnames.group(2).strip()
+                    surnames.add(name_surnames)
                     new_name_inflections.add(
                         firstnames_surnames.group(1)
                         + firstnames_surnames.group(2).strip()
                     )  # Tadeáš Hájek z Hájku -> Tadeáš Hájek
                     new_name_inflections.add(
                         firstnames_surnames.group(1)
-                        + firstnames_surnames.group(2).strip().upper()
+                        + _name_to_upper(name=firstnames_surnames.group(2)).strip()
                     )  # Tadeáš Hájek z Hájku -> Tadeáš HÁJEK
                     if len(firstnames_surnames.groups()) == 3:
                         new_name_inflections.add(
                             firstnames_surnames.group(1)
-                            + firstnames_surnames.group(2).upper()
+                            + _name_to_upper(name=firstnames_surnames.group(2))
                             + firstnames_surnames.group(3)
                         )  # Tadeáš Hájek z Hájku -> Tadeáš HÁJEK z Hájku
                         new_name_inflections.add(
                             firstnames_surnames.group(1)
-                            + firstnames_surnames.group(2).upper()
-                            + firstnames_surnames.group(3).upper()
+                            + _name_to_upper(name=firstnames_surnames.group(2))
+                            + _name_to_upper(name=firstnames_surnames.group(3)).strip()
                         )  # Tadeáš Hájek z Hájku -> Tadeáš HÁJEK Z HÁJKU
                     # firstnames_surnames = firstnames_surnames.group(1) + firstnames_surnames.group(2).upper()
                     # if firstnames_surnames != stacked_name:
@@ -270,7 +297,7 @@ def build_name_variant(
                 name_inflections.add(name_stripped)
         else:
             name_inflections |= new_name_inflections
-    return [name_inflections, subnames]
+    return name_inflections, subnames, surnames
 
 
 def get_KB_names_ntypes_for(_fields):
@@ -298,21 +325,19 @@ def get_KB_names_ntypes_for(_fields):
 
 
 def combine_special_separated_parts(
-    special_parts: List[str],
-    special_separators: Union[str, List[str]],
+    special_parts: Dict[str, Set[str]],
+    special_separators: Union[str, Dict[int, Set[str]]],
     i_part: int = 0,
     stacked_name: str = "",
-) -> Set:
+) -> Set[str]:
     output = set()
     if i_part < len(special_parts):
         for part in special_parts[i_part]:
-            output.update(
-                combine_special_separated_parts(
-                    special_parts=special_parts,
-                    special_separators=special_separators,
-                    i_part=i_part + 1,
-                    stacked_name=f"{stacked_name}{part}{special_separators if isinstance(special_separators, str) else special_separators[i_part]}",
-                )
+            output |= combine_special_separated_parts(
+                special_parts=special_parts,
+                special_separators=special_separators,
+                i_part=i_part + 1,
+                stacked_name=f"{stacked_name}{part}{special_separators if isinstance(special_separators, str) else special_separators[i_part]}",
             )
         return output
     else:
@@ -321,16 +346,18 @@ def combine_special_separated_parts(
         return set([stacked_name])
 
 
-def process_name_inflections(line, strip_nameflags=True):
+def process_name_inflections(
+    line: str, strip_nameflags: bool = True
+) -> Tuple[str, Set[str], Set[str], Dict, Set[str]]:
     subnames = set()
+    surnames_uris = {}
+    surnames = set()
     name_inflections = set()
-    line = line.strip("\n").split("\t")
-    if len(line) < 5:
-        raise ValueError("Some column missing: {}".format(line))
-    name = line[0]
-    # if name not in name_inflections:
-    # 	name_inflections[name] = set()
-    inflections = line[3].split("|") if line[3] != "" else []
+
+    name, lang, flags, inflections, uri = _get_values_from_tagged_inflections_line(
+        line=line
+    )
+
     for idx, infl in enumerate(inflections):
         inflection_parts = {}
         for i_infl_part, infl_part in enumerate(infl.split(" ")):
@@ -348,14 +375,12 @@ def process_name_inflections(line, strip_nameflags=True):
                 is_spec_char = True
                 zerowidth_parts = {}
                 for i_zw_part, infl_zw_part in enumerate(infl_part.split(spec_char)):
-                    zerowidth_parts[i_zw_part] = _separate_part_variants(
+                    zerowidth_parts[i_zw_part] = TaggedInflections._separate_part_variants(
                         name_part=infl_zw_part, part_variant_suffix=part_variant_suffix
                     )
 
-                inflection_parts[i_infl_part].update(
-                    combine_special_separated_parts(
-                        special_parts=zerowidth_parts, special_separators=spec_char
-                    )
+                inflection_parts[i_infl_part] |= combine_special_separated_parts(
+                    special_parts=zerowidth_parts, special_separators=spec_char
                 )
 
             # for dash-contained names like ...Adamovi#../Adamu#..-Philippovi#../Philippu#...
@@ -377,25 +402,21 @@ def process_name_inflections(line, strip_nameflags=True):
                 dashed_parts = {}
                 parts_separators = {}
                 for i_dashed_part, infl_dashed_item in enumerate(matches):
-                    dashed_parts[i_dashed_part] = _separate_part_variants(
+                    dashed_parts[i_dashed_part] = TaggedInflections._separate_part_variants(
                         name_part=infl_dashed_item[0],
                         part_variant_suffix=part_variant_suffix,
                     )
                     parts_separators[i_dashed_part] = infl_dashed_item[1]
-                inflection_parts[i_infl_part].update(
-                    combine_special_separated_parts(
-                        special_parts=dashed_parts, special_separators=parts_separators
-                    )
+                inflection_parts[i_infl_part] |= combine_special_separated_parts(
+                    special_parts=dashed_parts, special_separators=parts_separators
                 )
             if is_dashed == False and is_spec_char == False:
-                inflection_parts[i_infl_part].update(
-                    _separate_part_variants(
-                        name_part=infl_part, part_variant_suffix=part_variant_suffix
-                    )
+                inflection_parts[i_infl_part] |= TaggedInflections._separate_part_variants(
+                    name_part=infl_part, part_variant_suffix=part_variant_suffix
                 )
 
-        built_name_inflections, built_subnames = build_name_variant(
-            line[2][-1] if len(line[2]) else "",
+        built_name_inflections, built_subnames, build_surnames = build_name_variant(
+            flags[-1] if len(flags) else "",
             strip_nameflags,
             inflection_parts,
             idx == 0,
@@ -406,51 +427,225 @@ def process_name_inflections(line, strip_nameflags=True):
 
         name_inflections |= built_name_inflections
         subnames |= built_subnames
-    if len(inflections) == 0 and len(line[2]) and line[2][-1] in ["F", "M"]:
+        if idx == 0:
+            surnames_parts = set()
+            for surname in build_surnames:
+                surnames_parts |= set(
+                    regex.split(" |\u200b|" + RE_DASHES_VARIANTS, surname)
+                )
+            build_surnames |= surnames_parts
+            for surname in build_surnames:
+                surname = _strip_surname_flags(surname=surname)
+                surname = surname.strip(f" ,{DASHES}")
+                if surname.lower() == surname:
+                    logging.debug(f"Skipping surname \"{surname}\" (of name \"{name}\")..")
+                    continue
+
+                surname_key = _get_surname_entity_key(
+                    surname=surname, lang=lang, flags=flags
+                )
+                if surname_key not in surnames_uris:
+                    surnames_uris[surname_key] = set()
+                surnames_uris[surname_key].add(uri)
+                surnames.add(surname)
+    if len(inflections) == 0 and len(flags) and flags[-1] in ["F", "M"]:
         subnames |= persons.get_normalized_subnames(
             src_names=[name], separate_to_names=True
         )
-    return name, name_inflections, subnames
+    return name, name_inflections, subnames, surnames_uris, surnames
 
 
-def process_taggednames(f_taggednames, strip_nameflags=True):
-    subnames = set()
-    named_inflections = {}
+def _get_values_from_tagged_inflections_line(
+    line: str
+) -> Tuple[str, str, str, List[str], str]:
+    divider = "\t"
+    line_columns = line.split(divider)
+    try:
+        name, lang, flags, inflections, uri, _namegen_flags = line_columns
+    except ValueError:
+        raise ValueError(
+            "UNEXPECTED number of columns in namegen output - 6 are expected; {len(line_columns)} was/were given ({line_columns})"
+        )
+    inflections = inflections.split("|") if inflections != "" else []
+    return name, lang, flags, inflections, uri
 
-    path_cached_subnames = path_join(args.outdir, CACHED_SUBNAMES)
-    path_cached_inflectednames = path_join(args.outdir, CACHED_INFLECTEDNAMES)
-    if (
-        not args.clean_cached
-        and isfile(path_cached_subnames)
-        and isfile(path_cached_inflectednames)
-    ):
-        subnames = pickle_load(path_cached_subnames)
-        named_inflections = pickle_load(path_cached_inflectednames)
-    else:
-        pool = Pool(args.processes)
-        try:
-            with open(f_taggednames) as f:
-                results = pool.starmap(
-                    process_name_inflections, zip(f, repeat(strip_nameflags))
+
+class TaggedInflections:
+    def __init__(
+        self,
+        lang: str,
+        path_entities_taggednames: str,
+        namelist: Namelist,
+        outdir: str,
+        n_processes: int,
+    ) -> None:
+        self.subnames = set()
+        self.named_inflections = {}
+        self.surnames_names_map = {}
+        self.derivatives_inflections = {}
+
+        self._lang = lang
+        self._n_processes = n_processes
+        self._namelist = namelist
+        self._outdir = outdir
+        self._path_entities_taggednames = path_entities_taggednames
+        self._path_derivatives_taggednames = path_join(
+            self._outdir, "surnames_tagged_inflections.tsv"
+        )
+        self._surnames_uris = {}
+
+    def load_subnames_and_named_inflections(self, strip_nameflags: bool = True) -> None:
+        if not args.clean_cached and are_files_with_content(
+            paths=set(
+                [
+                    self._get_path_cached_subnames(),
+                    self._get_path_cached_inflectednames(),
+                    self._get_path_surnames_with_typeflags(),
+                    self._get_path_surnames_names_map(),
+                ]
+            )
+        ):
+            self.subnames = pickle_load(self._get_path_cached_subnames())
+            self.named_inflections = pickle_load(self._get_path_cached_inflectednames())
+            self.surnames_names_map = json_load(self._get_path_surnames_names_map())
+        else:
+            self._process_entities_taggednames_results(
+                self._process_entities_taggednames(strip_nameflags=strip_nameflags)
+            )
+            pickle_dump(self.subnames, self._get_path_cached_subnames())
+            pickle_dump(self.named_inflections, self._get_path_cached_inflectednames())
+            self._dump_surnames_with_typeflags()
+            json_dump(self.surnames_names_map, self._get_path_surnames_names_map())
+        self._namelist.add_subnames(self.subnames)
+        self._namelist.add_alternatives(self.named_inflections)
+
+
+    def load_derivatives_inflections(self, strip_nameflags: bool = True) -> None:
+        for name, inflections in self._process_derivatives_taggednames(strip_nameflags=strip_nameflags):
+            for surname_name in self.surnames_names_map[name]:
+                DictTools.add_to_dict_key(
+                    dictionary=self.derivatives_inflections, key=surname_name, items=inflections
                 )
-                for name, inflections, name_subnames in results:
-                    if name not in named_inflections:
-                        named_inflections[name] = inflections
-                    else:
-                        named_inflections[name] |= inflections
-                    subnames |= name_subnames
+        self._namelist.add_alternatives(self.derivatives_inflections)
+
+
+    def process_derivatives_inflections(self) -> None:
+        infile = self._get_path_surnames_with_typeflags()
+        outfile = self._path_derivatives_taggednames
+        if (
+            not args.clean_cached
+            and is_file_with_content(outfile)
+            and getmtime(outfile) > getmtime(infile)
+        ):
+            logging.info(
+                f'Using cached namegen output ("{outfile}") for surname derivatives...'
+            )
+        else:
+            logging.info("Running namegen for surnames derivatives...")
+            module2import = "lang_modules.{}.entities_tagged_inflections".format(
+                self._lang
+            )
+            try:
+                module_eti = importlib.import_module(module2import)
+                eti = module_eti.EntitiesTaggedInflections(
+                    infile=infile,
+                    outfile=outfile,
+                    eti_mode=EtiMode.DERIV,
+                )
+                eti.process()
+            except ModuleNotFoundError as e:
+                logging.waning(
+                    f"Problem in tagged inflections for entities: No implementation for given language. (Detail: {e})"
+                )
+
+    def _dump_surnames_with_typeflags(self) -> None:
+        if not self._surnames_uris:
+            logging.warning(
+                f'Can not save "{self._get_surnames_with_typeflags()}" due to empty data.'
+            )
+        with open(self._get_path_surnames_with_typeflags(), "w") as f:
+            for surname_data, uris in self._surnames_uris.items():
+                f.write(f"{surname_data}\t{'|'.join(uris)}\n")
+
+    def _get_path_cached_subnames(self) -> str:
+        return path_join(self._outdir, "cached_subnames.pkl")
+
+    def _get_path_cached_inflectednames(self) -> str:
+        return path_join(self._outdir, "cached_inflectednames.pkl")
+
+    def _get_path_surnames_names_map(self) -> str:
+        return path_join(self._outdir, "surnames_names_map.json")
+
+    def _get_path_surnames_with_typeflags(self) -> str:
+        return path_join(self._outdir, "surnames_with_typeflags.tsv")
+
+    def _process_common_taggednames(
+        self, input: str, processor: Callable, strip_nameflags: bool = True
+    ) -> Iterable[Tuple]:
+        pool = Pool(self._n_processes)
+        try:
+            with open(input) as f:
+                return pool.starmap(processor, zip(f, repeat(strip_nameflags)))
         except FileNotFoundError:
             pass
-        if subnames:
-            pickle_dump(subnames, path_cached_subnames)
-            pickle_dump(named_inflections, path_cached_inflectednames)
-    namelist.add_subnames(subnames)
-    return named_inflections
+
+    def _derivatives_taggednames_processor(
+        self, line: str, strip_nameflags: bool = True
+    ) -> Tuple[str, Set[str]]:
+        name, lang, flags, _inflections, uri = _get_values_from_tagged_inflections_line(
+            line=line
+        )
+        inflections = set()
+        for inflection in _inflections:
+              inflections.update(self._separate_part_variants(name_part=inflection))
+        return name, inflections
+
+    def _process_derivatives_taggednames(
+        self, strip_nameflags: bool = True
+    ) -> Iterable[Tuple]:
+        return self._process_common_taggednames(
+            input=self._path_derivatives_taggednames,
+            processor=self._derivatives_taggednames_processor,
+            strip_nameflags=strip_nameflags,
+        )
+
+    def _process_entities_taggednames(
+        self, strip_nameflags: bool = True
+    ) -> Iterable[Tuple]:
+        return self._process_common_taggednames(
+            input=self._path_entities_taggednames,
+            processor=process_name_inflections,
+            strip_nameflags=strip_nameflags,
+        )
+
+    def _process_entities_taggednames_results(self, results: Iterable[Tuple]) -> None:
+        for name, inflections, subnames, surnames_uris, surnames in results:
+            DictTools.add_to_dict_key(
+                dictionary=self.named_inflections, key=name, items=inflections
+            )
+            self.subnames |= subnames
+            for surname_key, uris in surnames_uris.items():
+                DictTools.add_to_dict_key(
+                    dictionary=self._surnames_uris, key=surname_key, items=uris
+                )
+            for surname in surnames:
+                if surname in self.surnames_names_map:
+                    self.surnames_names_map[surname].add(name)
+                else:
+                    self.surnames_names_map[surname] = {name}
+
+    @staticmethod
+    def _separate_part_variants(name_part: str, part_variant_suffix: str = "") -> Set[str]:
+        part_variants = set()
+        for part_variant in name_part.split("/"):
+            part_variants.add(
+                regex.sub(r"(\p{L}*)(\[[^\]]+\])?", r"\g<1>", part_variant)
+                + part_variant_suffix
+            )
+        return part_variants
 
 
 """ Processes a line with entity of argument determined type. """
-
-
 def add_line_of_type_to_dictionary(_fields, _line_num, _type_set):
     aliases = get_KB_names_ntypes_for(_fields)
     for alias, ntype in aliases.items():
@@ -571,14 +766,12 @@ def loadListFromFile(fname: str, use_lang_prefix: bool = True) -> List:
         return []
 
 
-def _separate_part_variants(name_part: str, part_variant_suffix: str = "") -> Set[str]:
-    part_variants = set()
-    for part_variant in name_part.split("/"):
-        part_variants.add(
-            regex.sub(r"(\p{L}*)(\[[^\]]+\])?", r"\g<1>", part_variant)
-            + part_variant_suffix
-        )
-    return part_variants
+def _strip_surname_flags(surname: str) -> str:
+    return regex.sub(r"#j?SE?", "", surname)
+
+
+def _get_surname_entity_key(surname: str, lang: str, flags: str) -> str:
+    return "\t".join([surname, lang, flags])
 
 
 if __name__ == "__main__":
@@ -626,12 +819,26 @@ if __name__ == "__main__":
         # lst_nationalities = loadListFromFile("nationalities.lst")
 
         # load frequency for words
+        logging.info("Loading word frequency...")
         namelist.load_frequency(
             outdir=args.outdir, indir=args.indir, clean_cached=args.clean_cached
         )
 
-        namelist.set_alternatives(process_taggednames(args.taggednames, False))
+        logging.info("Processing namegen for common names...")
+        tagged_inflections = TaggedInflections(
+            lang=args.lang,
+            path_entities_taggednames=args.taggednames,
+            namelist=namelist,
+            outdir=args.outdir,
+            n_processes=args.processes,
+        )
+        tagged_inflections.load_subnames_and_named_inflections(strip_nameflags=False)
         gc.collect()
+
+        tagged_inflections.process_derivatives_inflections()
+        tagged_inflections.load_derivatives_inflections()
+
+        logging.info("Running NER actions...")
 
         # processing the KB
         for line_num, fields in enumerate(
