@@ -360,6 +360,11 @@ def resolve_coreferences(entities, context, print_all, register):
                     entity = get_nearest_predecessor(e, candidates)
                     if entity:
                         e.set_preferred_sense(entity)
+                    elif e.senses:
+                        e.is_coreference = False
+                        e.partial_match_senses = set()
+                        e.disambiguate_without_context()
+                        e.disambiguate_with_context(context)
                 elif e.source.lower() in word_types.PRONOUNS:
                     e.resolve_pronoun_coreference(context)
                 elif e.senses:
