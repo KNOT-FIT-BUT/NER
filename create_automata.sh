@@ -20,6 +20,7 @@ usage() {
   echo -e "  --lang=${DEFAULT_LANG}    Create automata for given langueage."
   echo -e "  -u [<login>]         Upload (deploy) automata to webstorage via given login (login \"${USER}\" is used by default)."
   echo -e "  -c --clean-cached    Do not use previously created cached files (usable for same version of KB only)."
+  echo -e "     --clear-cached"
   echo -e "  -k <KB path>         Local KB version (do not download it from distribuition storage)"
   echo -e "  -Q --entity-id       Automata pointer will be entity id (usually wikidata Q-identifier) instead of line number."
   echo -e "  --dev                Development mode (upload to separate space to prevent forming a new production version of automata)"
@@ -88,7 +89,7 @@ while [ "$1" != "" ]; do
     --lang)
       LANG=${VALUE,,}
     ;;
-    -c | --clean-cached)
+    -c | --clean-cached | --clear-cached)
       CLEAN_CACHED=true
     ;;
     -k)

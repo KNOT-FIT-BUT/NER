@@ -325,7 +325,7 @@ def get_KB_names_ntypes_for(_fields):
 
 
 def combine_special_separated_parts(
-    special_parts: Dict[str, Set[str]],
+    special_parts: Dict[int, Set[str]],
     special_separators: Union[str, Dict[int, Set[str]]],
     i_part: int = 0,
     stacked_name: str = "",
@@ -333,11 +333,18 @@ def combine_special_separated_parts(
     output = set()
     if i_part < len(special_parts):
         for part in special_parts[i_part]:
+            if isinstance(special_separators, str):
+                curent_special_separator = special_separators
+            else:
+                if i_part < len(special_parts) - 1:
+                    curent_special_separator = special_separators[i_part]
+                else:
+                    curent_special_separator = ''
             output |= combine_special_separated_parts(
                 special_parts=special_parts,
                 special_separators=special_separators,
                 i_part=i_part + 1,
-                stacked_name=f"{stacked_name}{part}{special_separators if isinstance(special_separators, str) else special_separators[i_part]}",
+                stacked_name=f"{stacked_name}{part}{curent_special_separator}",
             )
         return output
     else:
@@ -597,7 +604,17 @@ class TaggedInflections:
         )
         inflections = set()
         for inflection in _inflections:
-              inflections.update(self._separate_part_variants(name_part=inflection))
+            name_parts = regex.split(r"(%s)" % RE_NAMES_SEPARATOR, inflection)
+            if len(name_parts) > 1:
+                name_parts_names = name_parts[::2]
+                name_parts_separators = dict(enumerate(name_parts[1::2]))
+                name_parts_names = dict(enumerate([self._separate_part_variants(name_part=x) for x in name_parts_names]))
+                combine_special_separated_parts(
+                    special_parts=name_parts_names,
+                    special_separators=list(name_parts_separators)
+                )
+            else:
+                inflections.update(self._separate_part_variants(name_part=inflection))
         return name, inflections
 
     def _process_derivatives_taggednames(
