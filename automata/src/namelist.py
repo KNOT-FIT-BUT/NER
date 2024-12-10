@@ -6,7 +6,6 @@ import regex
 import sys
 
 from abc import ABC, abstractmethod
-from itertools import permutations
 from os.path import join as path_join
 from sys import stdout, stderr
 from typing import Dict, List, Optional, Set, TextIO
@@ -499,19 +498,6 @@ class Namelist(ABC):
     def _add_person_variants(
         self, key: str, nametype: str, link: str, type_set: Set[str]
     ) -> None:
-        # TODO: maybe for not-#-flagged only?
-        # generating permutations for person and artist names
-        length = key.count(" ") + 1
-        if length <= 4 and length > 1:
-            parts = key.split(" ")
-            # if a name contains any of these words, we will not create
-            # permutations
-            if not (set(parts) & set(["van", "von"])):
-                names = list(permutations(parts))
-                for x in names:
-                    r = " ".join(x)
-                    self._add(r)
-
         if nametype != "nick":
             if regex.search(r"#", key):
                 self._add_tagged_person_alternatives_variants(key=key)
