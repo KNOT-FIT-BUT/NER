@@ -376,6 +376,8 @@ if ! test -s "${F_ENTITIES_TAGGED_INFLECTIONS}" || test `stat -c %Y "${F_ENTITIE
   then
     mv "${F_TMP_ENTITIES_TAGGED_INFLECTIONS}" "${F_ENTITIES_TAGGED_INFLECTIONS}"
   fi
+else
+  >&2 echo "Cached namegen output for common names is available..."
 fi
 
 if ! test -s "${F_ENTITIES_TAGGED_INFLECTIONS}"
@@ -389,12 +391,13 @@ then
   fi
 fi
 
-KB2NAMELIST_ARGS=()
+CLEAN_CACHED_ARGS=
 if test "${CLEAN_CACHED}" = true
 then
-  KB2NAMELIST_ARGS+=("--clean-cached")
+  CLEAN_CACHED_ARGS="--clean-cached"
 fi
 
+KB2NAMELIST_ARGS=()
 if test "${POINTER_AS_ENTITY_ID}" = true
 then
   KB2NAMELIST_ARGS+=("--entity-id")
@@ -450,15 +453,18 @@ then
   F_INTEXT_BASE="${DIR_OUTPUTS}/${F_INTEXT_NAMELIST_BASE_PREFIX}intext"
   if $ATM_COMMON
   then
-    run "${SCRIPT_KB2NAMELIST} | tr -s ' ' > \"${F_INTEXT_BASE}\"" "${ERR_PARAMS[@]}"
+    run "${SCRIPT_KB2NAMELIST} ${CLEAN_CACHED_ARGS} | tr -s ' ' > \"${F_INTEXT_BASE}\"" "${ERR_PARAMS[@]}"
+    CLEAN_CACHED_ARGS=
   fi
   if $ATM_LOWERCASE
   then
-    run "${SCRIPT_KB2NAMELIST} -d | tr -s ' ' > \"${F_INTEXT_BASE}_lower\"" "${ERR_PARAMS[@]}"
+    run "${SCRIPT_KB2NAMELIST} ${CLEAN_CACHED_ARGS} -d | tr -s ' ' > \"${F_INTEXT_BASE}_lower\"" "${ERR_PARAMS[@]}"
+    CLEAN_CACHED_ARGS=
   fi
   if $ATM_URI
   then
-    run "${SCRIPT_KB2NAMELIST} -u > \"${F_INTEXT_BASE}_uri\"" "${ERR_PARAMS[@]}"
+    run "${SCRIPT_KB2NAMELIST} ${CLEAN_CACHED_ARGS} -u > \"${F_INTEXT_BASE}_uri\"" "${ERR_PARAMS[@]}"
+    CLEAN_CACHED_ARGS=
   fi
 
   #=====================================================================

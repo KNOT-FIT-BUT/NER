@@ -10,6 +10,7 @@ from os.path import join as path_join
 from sys import stdout, stderr
 from typing import Dict, List, Optional, Set, TextIO
 
+from automata.src.definitions import DASHES, RE_DASHES_VARIANTS
 from automata.src.dict_tools import DictTools
 from automata.src.metrics_knowledge_base import KnowledgeBase
 from automata.src.word_frequency import (
@@ -234,10 +235,7 @@ class Namelist(ABC):
             return True
         if name.lower() not in self._word_frequency:
             return True
-        return (
-            name in self._word_frequency
-            and self._word_frequency[name].uplow >= 0.5
-        )
+        return name in self._word_frequency and self._word_frequency[name].uplow >= 0.5
 
     def load_frequency(
         self, outdir: str, indir: str, clean_cached: bool = False
@@ -303,15 +301,17 @@ class Namelist(ABC):
                 if regex.search(r"#j?[LS]E?", key):
                     preferred_name = True
 
-            key_with_flags=key
+            key_with_flags = key
             key = self._remove_flags(name=key)
             key = self._get_key_by_atm_variant(key=key)
 
             if n_parts == 1:
-              is_capital_dominant = self.is_capital_dominant(name=key)
-              if not (preferred_name or is_capital_dominant):
-                logging.debug(f'Skipping name "{key}" (original with flags = "{key_with_flags}"; is preferred = {preferred_name}; is_capital_dominant = {is_capital_dominant})')
-                continue
+                is_capital_dominant = self.is_capital_dominant(name=key)
+                if not (preferred_name or is_capital_dominant):
+                    logging.debug(
+                        f'Skipping name "{key}" (original with flags = "{key_with_flags}"; is preferred = {preferred_name}; is_capital_dominant = {is_capital_dominant})'
+                    )
+                    continue
 
             # removing entities that begin with '-. or space
             if len(regex.findall(r"^[ '-\.]", key)) != 0:
@@ -383,9 +383,11 @@ class Namelist(ABC):
                     )
                 )
 
-    def _debug_msg_name_variants(self, original_name_variants: Set[str], name_detail: Optional[str] = None) -> None:
+    def _debug_msg_name_variants(
+        self, original_name_variants: Set[str], name_detail: Optional[str] = None
+    ) -> None:
         diff_name_variants = self._name_variants.difference(original_name_variants)
-        debug_entity_detail = f' ({name_detail})' if name_detail else ''
+        debug_entity_detail = f" ({name_detail})" if name_detail else ""
         logging.debug(
             f'Name variants for "{self._debug_entity}"{debug_entity_detail} after {sys._getframe(1).f_code.co_name}(): {diff_name_variants} [+{len(diff_name_variants)}]'
         )
@@ -420,16 +422,21 @@ class Namelist(ABC):
         if self._debug_mode:
             tmp_name_variants = self._name_variants.copy()
         for name in self._name_variants.copy():
-            for dash_type in [
-                "-",
-                "–",
-                "—",
-                "­",
-            ]:  # 0x2D (0045), 0x96 (0150), 0x97 (0151), 0xAD (0173)
+            for dash_type in DASHES:
                 if dash_type in name:
-                    name_capitalized_parts = [
-                        word.capitalize() for word in name.split(dash_type)
-                    ]
+                    name_capitalized_parts = []
+                    dashed_parts = name.split(dash_type)
+                    for i_part, dashed_part in enumerate(dashed_parts):
+                        name_capitalized_parts.append(
+                            " ".join(
+                                [
+                                    (dashed_part_name[0].upper() + dashed_part_name[1:])
+                                    if len(dashed_part_name) >= 2
+                                    else dashed_part_name
+                                    for dashed_part_name in dashed_part.split(" ")
+                                ]
+                            )
+                        )
                     # Mao Ce<dash_type>tung -> Mao Ce<dash_type>Tung
                     self._add(dash_type.join(name_capitalized_parts))
                     if dash_type != "-":  # 0x2D (0045)
@@ -564,10 +571,12 @@ class Namelist(ABC):
             sn_full_alternatives = {sn_full}
 
             for sn_full_alternative in sn_full_alternatives.copy():
-                sn_full_alternatives.update({
-                    sn_unknowns + sn_full_alternative,
-                    sn_unknowns + nameparts["n_partonyms"] + sn_full_alternative,
-                })
+                sn_full_alternatives.update(
+                    {
+                        sn_unknowns + sn_full_alternative,
+                        sn_unknowns + nameparts["n_partonyms"] + sn_full_alternative,
+                    }
+                )
 
             for sn_full in sn_full_alternatives:
                 self._add_tagged_person_variants(
@@ -607,7 +616,7 @@ class Namelist(ABC):
         self._add("{} {}".format(fn_1st, sn_full))
         # J. Bach
         self._add("{} {}".format(fn_1st_abbr, sn_full))
-        if 'R' not in surname_tags:
+        if "R" not in surname_tags:
             self._add(
                 "{}, {}{}{}".format(sn_full, fn_1st, sep_special, fn_others_full)
             )  # Bach, Johann Gottfried Bernhard
@@ -621,34 +630,81 @@ class Namelist(ABC):
             self._add("{}, {}".format(sn_full, fn_1st))
             # Bach, J.
             self._add("{}, {}".format(sn_full, fn_1st_abbr))
+            # Bach Johann
+            # self._add("{} {}".format(sn_full, fn_1st))
+            # Bach Johann Gottfried Bernhard
+            self._add("{} {}{}{}".format(sn_full, fn_1st, sep_special, fn_others_full))
+            # Bach Johann G. B.
+            self._add("{} {}{}{}".format(sn_full, fn_1st, sep_special, fn_others_abbr))
         # Karel I. Veliký -> Karel I.
-        surname_parts = regex.search(r"%s*(?P<number>[IVXLCDM]+\.#R)%s*(?P<m_name>(?:\p{Lu}')?\p{Lu}\p{L}+#j?ME?$)" % (self.RE_FLAGNAME_SEPARATOR, self.RE_FLAGNAME_SEPARATOR), sn_full)
+        surname_parts = regex.search(
+            r"%s*(?P<number>[IVXLCDM]+\.#R)%s*(?P<m_name>(?:\p{Lu}')?\p{Lu}\p{L}+#j?ME?$)"
+            % (self.RE_FLAGNAME_SEPARATOR, self.RE_FLAGNAME_SEPARATOR),
+            sn_full,
+        )
         if surname_parts:
             number = surname_parts.group("number")
             self._add(f"{fn_1st} {number}")
         # Bach
-        surnames = regex.findall(r"(?<=^|%s)(?P<namewithflag>(?P<name>(?:\p{Lu}')?\p{Lu}\p{L}+)(?P<flag>#j?SE?))" % self.RE_FLAGNAME_SEPARATOR, sn_full)
+        surnames = regex.findall(
+            r"(?<=^|%s)(?P<namewithflag>(?P<name>(?:\p{Lu}')?\p{Lu}\p{L}+)(?P<flag>#j?SE?))"
+            % self.RE_FLAGNAME_SEPARATOR,
+            sn_full,
+        )
         for surname_tuple in surnames:
             surname_with_flags = surname_tuple[0]
             surname_without_flags = surname_tuple[1]
             if self.is_capital_dominant(name=surname_without_flags):
                 self._add(surname_with_flags)
             else:
-                logging.debug(f"Skipped surname: {surname_with_flags} (frequency: {self._get_debug_frequency_info(name=surname_without_flags)})")
+                logging.debug(
+                    f"Skipped surname: {surname_with_flags} (frequency: {self._get_debug_frequency_info(name=surname_without_flags)})"
+                )
         # Ernest T. Seton
         if len(surnames) > 1:
             abbr_surnames = f"{surnames[0][1][0]}.{surnames[0][2]}"
             full_surnames = " ".join(x[0] for x in surnames[1:])
-            self._add("{} {}{}{} {}".format(fn_1st, fn_others_full, sep_special, abbr_surnames, full_surnames))
-            self._add("{} {}{}{} {}".format(fn_1st_abbr, fn_others_abbr, sep_special, abbr_surnames, full_surnames))
+            self._add(
+                "{} {}{}{} {}".format(
+                    fn_1st, fn_others_full, sep_special, abbr_surnames, full_surnames
+                )
+            )
+            self._add(
+                "{} {}{}{} {}".format(
+                    fn_1st_abbr,
+                    fn_others_abbr,
+                    sep_special,
+                    abbr_surnames,
+                    full_surnames,
+                )
+            )
             if len(surnames) > 2:
                 abbr_surnames = " ".join(f"{x[1][0]}.{x[2]}" for x in surnames[:-1])
                 full_surnames = surnames[-1][0]
-                self._add("{} {}{}{} {}".format(fn_1st, fn_others_full, sep_special, abbr_surnames, full_surnames))
-                self._add("{} {}{}{} {}".format(fn_1st_abbr, fn_others_abbr, sep_special, abbr_surnames, full_surnames))
+                self._add(
+                    "{} {}{}{} {}".format(
+                        fn_1st,
+                        fn_others_full,
+                        sep_special,
+                        abbr_surnames,
+                        full_surnames,
+                    )
+                )
+                self._add(
+                    "{} {}{}{} {}".format(
+                        fn_1st_abbr,
+                        fn_others_abbr,
+                        sep_special,
+                        abbr_surnames,
+                        full_surnames,
+                    )
+                )
 
         if self._debug_mode:
-            self._debug_msg_name_variants(original_name_variants=tmp_name_variants, name_detail=f'surname variant="{sn_full}"')
+            self._debug_msg_name_variants(
+                original_name_variants=tmp_name_variants,
+                name_detail=f'surname variant="{sn_full}"',
+            )
 
     def _add_untagged_person_variants(self, key: str) -> None:
         if self._debug_mode:
@@ -819,10 +875,14 @@ class Namelist(ABC):
                 self._subnames |= self._persons.get_normalized_subnames(
                     set([key]), separate_to_names=True
                 )
+
         for tmp in key_inflections.copy():
-            if regex.search(r"(?:-|–)\p{Lu}", tmp):
+            if regex.search(r"%s\p{Lu}" % RE_DASHES_VARIANTS, tmp):
+                tmp = regex.sub(r"%s(\p{Lu})" % RE_DASHES_VARIANTS, r" \g<1>", tmp)
                 # Payne-John Christo -> Payne John Christo
-                key_inflections.add(regex.sub(r"(?:-|–)(\p{Lu})", r" \g<1>", tmp))
+                key_inflections.add(
+                    regex.sub(r"%s(\p{Lu})" % RE_DASHES_VARIANTS, r" \g<1>", tmp)
+                )
 
         return key_inflections
 
