@@ -274,7 +274,7 @@ def build_name_variant(
                 and firstnames_surnames.group(2)[-1] in DASHES
             ):
                 logging.warning(
-                    f'SKIPPING due to invalid combination of first and last names designations from namegen - firstname ends with dash for name="\{stacked_name}"\ (firstnames="{firstnames_surnames.group(1)}{firstnames_surnames.group(2)}"; surnames="{firstnames_surnames.group(3)}")'
+                    f'SKIPPING due to invalid combination of first and last names designations from namegen - firstname ends with dash for name="{stacked_name}" (firstnames="{firstnames_surnames.group(1)}{firstnames_surnames.group(2)}"; surnames="{firstnames_surnames.group(3)}")'
                 )
             else:
                 new_name_inflections.add(stacked_name)

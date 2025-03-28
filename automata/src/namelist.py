@@ -300,6 +300,8 @@ class Namelist(ABC):
             if n_parts == 1:
                 if regex.search(r"#j?[LS]E?", key):
                     preferred_name = True
+            elif n_parts == 0:
+                n_parts = key.count(" ") + 1
 
             key_with_flags = key
             key = self._remove_flags(name=key)
