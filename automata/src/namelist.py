@@ -153,6 +153,7 @@ class Namelist(ABC):
         if key not in self._lst_allowed and self._is_unsuitable_key(
             key=key, type_set=type_set
         ):
+            logging.debug("Key \"{key}\" (of type \"{type_set}\" is unsuitable - skipping.")
             return
 
         self._debug_entity = key
@@ -306,6 +307,8 @@ class Namelist(ABC):
             key_with_flags = key
             key = self._remove_flags(name=key)
             key = self._get_key_by_atm_variant(key=key)
+
+            logging.debug(f"Key \"{key}\", n_parts={n_parts}; is_capital_dominant={self.is_capital_dominant(name=key)}; preferred_name={preferred_name}")
 
             if n_parts == 1:
                 is_capital_dominant = self.is_capital_dominant(name=key)
@@ -943,10 +946,14 @@ class Namelist(ABC):
                 if key.startswith(unwanted):
                     return True
 
-        # generally, we don't want names starting with low characters (event is
-        # needed with low character, ie. "bitva u Waterloo")
-        if "event" not in type_set:
-            if len(regex.findall(r"^\p{Ll}+", key)) != 0:
+        # generally, we don't want names starting with low characters (event and
+        # geographical are needed with low character, ie. "bitva u Waterloo",
+        # "moře Laptěvů")
+        if len(regex.findall(r"^\p{Ll}+", key)) != 0:
+            if "event" in type_set or "geographical" in type_set:
+                if " " not in key:
+                    return True
+            else:
                 return True
 
         # filtering out all names with length smaller than 2 and greater than
