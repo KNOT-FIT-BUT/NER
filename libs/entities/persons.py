@@ -3,12 +3,19 @@
 #
 # Author: Tomáš Volf, ivolf[at]fit.vutbr.cz
 
+import logging
 import regex
 import libs.re_utils as re_utils
 from abc import ABC
 from libs.automata_variants import AutomataVariants
 from libs.utils import remove_accent
 
+debug_mode = True
+
+logging.basicConfig(
+    format="[%(asctime)s - %(levelname)s]:   %(message)s",
+    level=logging.DEBUG if debug_mode else logging.WARNING,
+)
 
 class Persons(ABC):
 	# Common name preposition for all languages - it should not be completed or overriden in lang-specific modules
@@ -19,7 +26,7 @@ class Persons(ABC):
 					     "di",             # Italian or Spanish
 					     "dalla", "del", "dos", "el", "la", "le", "ben", "bin", "y", # http://prirucka.ujc.cas.cz/?id=326
 						]
-    # Common name prefixes for all languages - it should not be completed or overriden in lang-specific modules
+	# Common name prefixes for all languages - it should not be completed or overriden in lang-specific modules
 	NAME_PREFIXES = ["d'", "o'"]             # French / Italian / Portuguese / Spanish
 
 	# overriden in lang-specific modules
@@ -61,7 +68,7 @@ class Persons(ABC):
 		# Warning: contain space on the beginning to avoid match "Ivan Novák" as "van Novák" => it is needed to get substring from second char
 		tmp_prepositions = re_utils.list2FirstIncaseAlternation(self.NAME_PREPOSITIONS)
 		regex_prepositions_remove = regex.compile(r" {} ".format(tmp_prepositions))
-		regex_prepositions_name = regex.compile(r" {} \p{{Lu}}\p{{L}}+".format(tmp_prepositions), flags=regex_flags)
+		regex_prepositions_name = regex.compile(r"(?:^| ){} \p{{Lu}}\p{{L}}+".format(tmp_prepositions), flags=regex_flags)
 
 		# tmp_prefixes in the form og "([Dd]\\'|[Oo]\\'|..)"
 		tmp_prefixes = re_utils.list2FirstIncaseAlternation(self.NAME_PREFIXES)
@@ -99,20 +106,23 @@ class Persons(ABC):
 
 			# remove a part of the name with location information (e.g. " of Polestown" from the name "Richard Butler of Polestown")
 			name = regex_location_remove.sub("", name)
-			if name.upper() != name:
-				name = name.title()
 
 			if separate_to_names:
 				# split the name only (without prepositions) to the parts
-				subnames = regex_prepositions_remove.sub(" ", name).split()
+				subnames = set(regex_prepositions_remove.sub(" ", name).split())
+				if subname_location and subname_location != name_with_location:
+					subnames.add(subname_location)
 			else:
-				subnames = [name]
+				subnames = set([name])
+				subnames.add(name_with_location)
 
+			"""
 			if not separate_to_names:
-				subnames.append(name_with_location)
+				subnames.add(name_with_location)
 			if subname_location and subname_location != name_with_location:
 				# Name part without location
-				subnames.append(subname_location)
+				subnames.add(subname_location)
+			"""
 
 			# searching for a role
 			if regex_role:
@@ -135,7 +145,8 @@ class Persons(ABC):
 				# skip invalid / forbidden names
 				if subname_lower not in self.get_FORBIDDEN_NAMES() or subname_lower not in roles_lower:
 					# normalize name to start with capital, including name with prefix (for example o'... => O'...)
-					subname = subname[0].upper() + subname[1:]
+					if separate_to_names == True or len(subname.split(" ")) == 1:
+						subname = subname[0].upper() + subname[1:]
 					# remove accent, because python re module doesn't support [A-Z] for Unicode
 					subname_without_accent = remove_accent(subname)
 					result = regex_name.match(subname)
@@ -155,13 +166,13 @@ class Persons(ABC):
 								names.add(nonprefix.lower() if AutomataVariants.isLowercase(config) else nonprefix.capitalize())
 
 			# search for names with preposition, i.e. "van Eyck"
-			preposition_name = regex_prepositions_name.search(name.title())
+			preposition_name = regex_prepositions_name.search(name)
 			if preposition_name:
 				match = preposition_name.group()
 
 				# normalize name to start with capital, including name with preposition (for example "van Eyck" => "Van Eyck")
 				# Warning: contain space on the beginning to avoid match "Ivan Novák" as "van Novák" => it is needed to get substring from second char
-				subname = match[1:].title()
+				subname = match.lstrip().title()
 				subname_without_accent = remove_accent(subname)
 
 				# add non-accent variant (if required) to processing (only if not same as base name)

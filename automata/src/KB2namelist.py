@@ -44,9 +44,16 @@ from sys import stderr
 from typing import Callable, Dict, Iterable, List, Set, Tuple, Union
 
 from automata.src.configs import LANG_DEFAULT
-from automata.src.definitions import DASHES, RE_DASHES, RE_DASHES_VARIANTS
+from automata.src.definitions import (
+    DASHES,
+    RESCAPE_DASHES,
+    RE_DASHES_VARIANTS,
+    RE_NAMES_SEPARATORS,
+    RE_NOT_SEPARATORS,
+)
 from automata.src.dict_tools import DictTools
 from automata.src.entities_tagged_inflections import EtiMode
+from automata.src.exceptions import EmptyName
 from automata.src.file_utils import (
     are_files_with_content,
     is_file_with_content,
@@ -72,9 +79,6 @@ SURNAME_MATCH = regex.compile(
     r"(((?<=^)|(?<=[ ]))(?:(?:da|von)(?:#[^ ]+)? )?((?:\p{Lu}\p{Ll}*(?:#[^- ]+)?-)?(?:\p{Lu}\p{Ll}+(?:#[^- ]+)?))$)"
 )
 
-NAMES_SEPARATORS = " ,\u200b" + DASHES
-RE_NAMES_SEPARATORS = r"(?:%s)" % "|".join(NAMES_SEPARATORS)
-# RE_NAMES_SEPARATOR = r"(?: |,|\u200b|%s)" % RE_DASHES_VARIANTS
 
 kb_struct = None
 namelist = None
@@ -164,9 +168,13 @@ def get_subnames_from_parts(subname_parts) -> Set[str]:
     subnames = set()
     subname_all = ""
     for subname_part in subname_parts:
-        subname_part = regex.sub(
-            r"#[A-Za-z0-9]+E?(%s|$)" % RE_NAMES_SEPARATORS, r"\g<1>", subname_part
-        )
+        try:
+            subname_part = regex.sub(
+                r"#[A-Za-z0-9]+E?(%s|$)" % RE_NAMES_SEPARATORS, r"\g<1>", subname_part
+            )
+        except Exception:
+            logging.debug(f"Problematic subname part: {subname_part} ({subname_parts})")
+            raise
         subnames.add(subname_part)
         if subname_all:
             subname_part = " " + subname_part
@@ -180,37 +188,57 @@ def get_subnames_from_parts(subname_parts) -> Set[str]:
 def _name_to_upper(name: str) -> str:
     if not name:
         return name
-    name_parts = name.split("#")
-    name_parts[0] = name_parts[0].upper()
-    tmp_name = "#".join(name_parts)
+    tmp_parts = regex.findall(r"(%s+)(%s|$)" % (RE_NOT_SEPARATORS, RE_NAMES_SEPARATORS), name)
+    name_parts, separators = map(list, zip(*tmp_parts))
+    for i_part, name_part in enumerate(name_parts):
+        name_part_items = name_part.split("#")
+        if len(name_part_items[0]) == 0:
+            raise EmptyName(
+                f'Error in name part "{name_part}" (i_part={i_part}; name="{name}"; name parts: {name_parts})'
+            )
+        if (
+            name_part_items[0][0] == name_part_items[0][0].upper()
+            or "'" in name_part_items[0]
+            or "´" in name_part_items[0]
+            or "’" in name_part_items[0]
+        ):
+            name_part_items[0] = name_part_items[0].upper()
+            if len(name_part_items) > 1:
+                name_parts[i_part] = "#".join(name_part_items)
+            else:
+                name_parts[i_part] = name_part_items[0]
+    return ''.join(''.join(x) for x in zip(name_parts, separators))
 
-    return tmp_name
 
-
-def _shorten_name(firstnames: str, surnames: str, other_names: str) -> Set[str]:
+def _shorten_name(firstnames: str, surnames: str, other_names: str, is_basic_form: bool = False) -> Set[str]:
     shortened_names = set()
     stripped_surnames = _rstrip_name_separators(name=surnames)
     stripped_other_names = _rstrip_name_separators(name=other_names)
     shortened_names.add(
         firstnames + stripped_surnames
     )  # Tadeáš Hájek z Hájku -> Tadeáš Hájek
-    shortened_names.add(
-        firstnames + _name_to_upper(name=stripped_surnames)
-    )  # Tadeáš Hájek z Hájku -> Tadeáš HÁJEK
-    if other_names:
-        shortened_names.add(
-            firstnames + _name_to_upper(name=surnames) + stripped_other_names
-        )  # Tadeáš Hájek z Hájku -> Tadeáš HÁJEK z Hájku
-        shortened_names.add(
-            firstnames
-            + _name_to_upper(name=surnames)
-            + _name_to_upper(name=stripped_other_names)
-        )  # Tadeáš Hájek z Hájku -> Tadeáš HÁJEK Z HÁJKU
+    try:
+        if is_basic_form:
+            shortened_names.add(
+                firstnames + _name_to_upper(name=stripped_surnames)
+            )  # Tadeáš Hájek z Hájku -> Tadeáš HÁJEK
+        if other_names:
+            shortened_names.add(
+                firstnames + _name_to_upper(name=surnames) + stripped_other_names
+            )  # Tadeáš Hájek z Hájku -> Tadeáš HÁJEK z Hájku
+            if is_basic_form:
+                shortened_names.add(
+                    firstnames
+                    + _name_to_upper(name=surnames)
+                    + _name_to_upper(name=stripped_other_names)
+                )  # Tadeáš Hájek z Hájku -> Tadeáš HÁJEK Z HÁJKU
+    except EmptyName as e:
+        logging.warning(f"{e} [firstnames: \"{firstnames}\"; surnames: \"{surnames}\"; other_names: \"{other_names}\"]")
     return shortened_names
 
 
 def _rstrip_name_separators(name: str) -> str:
-    re_strip_separators = r"[%s]+$" % NAMES_SEPARATORS
+    re_strip_separators = r"%s+$" % RE_NAMES_SEPARATORS
     return regex.sub(re_strip_separators, "", name)
 
 
@@ -246,76 +274,85 @@ def build_name_variant(
 
         if ent_flag not in ["F", "M"]:
             new_name_inflections.add(stacked_name)
+        elif regex.search(r"#j?SE?.*#j?GE?.*#j?SE?", stacked_name):
+            logging.warning(
+                f'SKIPPING due to invalid combination of first and last names designations from namegen - firstname between surnames for name="{stacked_name}")'
+            )
+        # needs to be checked here due to #jME (and other) flags, which are not covered in following regex
+        elif regex.search(r"#j?GE?%s[^#]+#j?SE?" % RE_DASHES_VARIANTS, stacked_name):
+            logging.warning(
+                f'SKIPPING due to invalid combination of first and last names designations from namegen - firstname ends with dash for name="{stacked_name}")'
+            )
         else:
             firstnames_surnames = regex.match(
-                r"^([^#]+#j?[G]E?"  # first firstname
+                r"^(([^#]+#j?[G]E?)(?:"  # first firstname & all firstnames
+                + RE_NAMES_SEPARATORS  # all firstnames only
+                + r")+(?:[^#]+#j?[G]E?"
                 + RE_NAMES_SEPARATORS
-                + r")((?:[^#]+#j?[G]E?"  # other firstnames
+                + r"+)*)(([^#]+#j?SE?)(?:"  # first surname & all surnames
+                + RE_NAMES_SEPARATORS  # all surnames only
+                + r"+|$)(?:[^#]+#j?SE?(?:"
                 + RE_NAMES_SEPARATORS
-                + r")*)((?:[^# "  # surnames
-                + RE_DASHES
-                + r"]+#j?SE?(?:"
+                + r"+|$))*)((?:[^#]+#j?[L78]E?(?:"  # other names (suffixes, locations, etc)
                 + RE_NAMES_SEPARATORS
-                + r"|$))+)((?:[^# "  # other names (suffixes, locations, etc)
-                + RE_DASHES
-                + r"]+#[L78]E?(?:"
-                + RE_NAMES_SEPARATORS
-                + r"|$))*)$",
+                + r"+|$))*)$",
                 stacked_name,
             )
 
             if not firstnames_surnames:
-                logging.debug(
-                    f"Name building - not matched to shorten name, kept original: {stacked_name}"
-                )
                 new_name_inflections.add(stacked_name)
             elif (
-                len(firstnames_surnames.group(2)) > 0
-                and firstnames_surnames.group(2)[-1] in DASHES
+                len(firstnames_surnames.group(1)) > 0
+                and firstnames_surnames.group(1)[-1] in DASHES
             ):
                 logging.warning(
-                    f'SKIPPING due to invalid combination of first and last names designations from namegen - firstname ends with dash for name="{stacked_name}" (firstnames="{firstnames_surnames.group(1)}{firstnames_surnames.group(2)}"; surnames="{firstnames_surnames.group(3)}")'
+                    f"Mistake with dashed name: {stacked_name} ({firstnames_surnames.groups()})"
                 )
             else:
                 new_name_inflections.add(stacked_name)
-                part_first_firstname = (
-                    _rstrip_name_separators(name=firstnames_surnames.group(1)) + " "
-                )
-                part_firstnames = firstnames_surnames.group(
-                    1
-                ) + firstnames_surnames.group(2)
-                part_surnames = firstnames_surnames.group(3)
-                part_other_names = firstnames_surnames.group(4)
+                part_firstnames_all = firstnames_surnames.group(1)
+                part_firstname_1st = firstnames_surnames.group(2) + " "
+                part_surnames_all = firstnames_surnames.group(3)
+                part_surname_1st = firstnames_surnames.group(4)
+                part_other_names = firstnames_surnames.group(5)
 
                 first_firstname_surnames = (
-                    part_first_firstname
-                    + part_surnames
+                    part_firstname_1st
+                    + part_surnames_all
                     + _rstrip_name_separators(name=part_other_names)
                 )
                 new_name_inflections.add(first_firstname_surnames)
 
-                if is_basic_form:
-                    new_name_inflections |= _shorten_name(
-                        firstnames=part_firstnames,
-                        surnames=part_surnames,
-                        other_names=part_other_names,
-                    )
-                    new_name_inflections |= _shorten_name(
-                        firstnames=part_first_firstname,
-                        surnames=part_surnames,
-                        other_names=part_other_names,
-                    )
-
-                name_surnames = _rstrip_name_separators(
-                    name=firstnames_surnames.group(3)
+                new_name_inflections |= _shorten_name(
+                    firstnames=part_firstnames_all,
+                    surnames=part_surnames_all,
+                    other_names=part_other_names,
+                    is_basic_form=is_basic_form,
                 )
+                new_name_inflections |= _shorten_name(
+                    firstnames=part_firstname_1st,
+                    surnames=part_surnames_all,
+                    other_names=part_other_names,
+                    is_basic_form=is_basic_form,
+                )
+
+                name_surnames = _rstrip_name_separators(name=part_surnames_all)
                 surnames.add(name_surnames)
 
             for n in new_name_inflections:
                 subnames |= get_subnames_from_parts(regex.findall(r"(\p{L}+#j?GE?)", n))
+
                 subnames |= get_subnames_from_parts(
-                    regex.findall(r"(\p{L}+#j?SE?(?: \p{L}+#[L78])*)", n)
+                    regex.findall(
+                        r"((?<="
+                        + RE_NAMES_SEPARATORS
+                        + r")(?:\p{Ll}+#j?SE?"
+                        + RE_NAMES_SEPARATORS
+                        + r")*\p{Lu}\p{L}+#j?SE?(?: \p{L}+#[L78])*)",
+                        n,
+                    )
                 )
+            prev_subnames = subnames
             subnames = persons.get_normalized_subnames(subnames)
         if strip_nameflags:
             for n in new_name_inflections:
@@ -429,9 +466,9 @@ def process_name_inflections(
             is_dashed = False
             matches = regex.findall(
                 r"([^/#]*#[^/"
-                + RE_DASHES
+                + RESCAPE_DASHES
                 + r"]*(?:/[^#]*#[^/"
-                + RE_DASHES
+                + RESCAPE_DASHES
                 + r"]*)*)("
                 + RE_DASHES_VARIANTS
                 + r"|$)",
@@ -482,7 +519,6 @@ def process_name_inflections(
                 surname = _strip_surname_flags(surname=surname)
                 surname = surname.strip(f" ,{DASHES}")
                 if surname.lower() == surname:
-                    logging.debug(f'Skipping surname "{surname}" (of name "{name}")..')
                     continue
 
                 surname_key = _get_key_from_name_lang_flags(
@@ -680,18 +716,7 @@ class TaggedInflections:
         except FileNotFoundError:
             pass
 
-    def _derivatives_taggednames_of_locations_processor(
-        self, line: str, strip_nameflags: bool = True
-    ) -> Tuple[str, Set[str]]:
-        name, lang, flags, _inflections, uri = _get_values_from_tagged_inflections_line(
-            line=line
-        )
-        inflections = set()
-        for inflection in _inflections:
-            inflections.update(self._separate_part_variants(name_part=inflection))
-        return name, inflections
-
-    def _derivatives_taggednames_of_surnames_processor(
+    def _derivatives_taggednames_processor(
         self, line: str, strip_nameflags: bool = True
     ) -> Tuple[str, Set[str]]:
         name, lang, flags, _inflections, uri = _get_values_from_tagged_inflections_line(
@@ -724,7 +749,7 @@ class TaggedInflections:
     ) -> Iterable[Tuple]:
         return self._process_common_taggednames(
             input=self._path_derivatives_location_taggednames,
-            processor=self._derivatives_taggednames_of_locations_processor,
+            processor=self._derivatives_taggednames_processor,
             strip_nameflags=strip_nameflags,
         )
 
@@ -733,7 +758,7 @@ class TaggedInflections:
     ) -> Iterable[Tuple]:
         return self._process_common_taggednames(
             input=self._path_derivatives_surname_taggednames,
-            processor=self._derivatives_taggednames_of_surnames_processor,
+            processor=self._derivatives_taggednames_processor,
             strip_nameflags=strip_nameflags,
         )
 
