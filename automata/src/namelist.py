@@ -8,9 +8,9 @@ import sys
 from abc import ABC, abstractmethod
 from os.path import join as path_join
 from sys import stdout, stderr
-from typing import Dict, List, Optional, Set, TextIO
+from typing import Dict, List, Optional, Set, TextIO, Tuple
 
-from automata.src.definitions import DASHES, RE_DASHES_VARIANTS
+from automata.src.definitions import DASHES, RE_DASHES_VARIANTS, RE_NAMES_SEPARATORS, RE_NOT_SEPARATORS
 from automata.src.dict_tools import DictTools
 from automata.src.metrics_knowledge_base import KnowledgeBase
 from automata.src.word_frequency import (
@@ -28,11 +28,15 @@ from libs.nationalities.nat_loader import NatLoader
 class Namelist(ABC):
     NONACCENT_TYPES = set(["person", "geographical"])
 
+    FORBIDDEN_INITIALS = ":," + DASHES
+    FORBIDDEN_ENDINGS = ":," + DASHES
+
     RE_FLAG_NAMES = r"(?:#j?[A-Z0-9]+E?)"
     RE_FLAG_ONLY1ST_FIRSTNAME = r"(?:#j?[GI]E?)"
     RE_FLAG_FIRSTNAME = r"(?:#j?[G]E?)"
-    RE_FLAG_SURE_SURNAME = r"(?:#j?[^GI]E?)"
+    RE_FLAG_SURE_SURNAME = r"(?:#j?[^jEGI]E?)"
     RE_FLAGNAME_SEPARATOR = r"(?:\s|\u200b|-)"
+    RE_SURNAME_LOWER_ABBR = r"((?:.*%s)+)(\p{Lu}).*" % RE_NAMES_SEPARATORS
 
     def __init__(self, lang: str) -> None:
         self._lang = lang
@@ -153,7 +157,13 @@ class Namelist(ABC):
         if key not in self._lst_allowed and self._is_unsuitable_key(
             key=key, type_set=type_set
         ):
+<<<<<<< HEAD
             logging.debug("Key \"{key}\" (of type \"{type_set}\" is unsuitable - skipping.")
+=======
+            logging.debug(
+                f'Key "{key}" (of type "{type_set}" is unsuitable - skipping.'
+            )
+>>>>>>> derived_names
             return
 
         self._debug_entity = key
@@ -163,6 +173,15 @@ class Namelist(ABC):
         for key_inflection in self._get_key_inflections(
             key=key, nametype=nametype, type_set=type_set
         ):
+            new_key_inflection = regex.sub(r"^[%s](?:#%s+)?%s" % (regex.escape(self.FORBIDDEN_INITIALS), RE_NOT_SEPARATORS, RE_NAMES_SEPARATORS), "", key_inflection)
+            if new_key_inflection != key_inflection:
+                logging.info(f"One of forbidden initial chars found in name \"{key_inflection}\" -> changed to \"{new_key_inflection}\"")
+                key_inflection = new_key_inflection
+            if key_inflection[-1] in self.FORBIDDEN_ENDINGS:
+                new_key_inflection = key_inflection.rstrip(self.FORBIDDEN_ENDINGS).rstrip()
+                logging.info(f"One of forbidden ending chars found in name \"{key_inflection}\" -> changed to \"{new_key_inflection}\"")
+                key_inflection = new_key_inflection
+
             # adding name into the dictionary
             self._add(key=key_inflection)
 
@@ -230,7 +249,7 @@ class Namelist(ABC):
             raise TypeError(
                 f'Type conflict - expected "str"; got "{type(name).__name__}".'
             )
-        if name[0].title() != name[0]:
+        if name[0].title() != name[0] and not regex.search(RE_NAMES_SEPARATORS, name):
             return False
         if name.title() != name:
             return True
@@ -433,14 +452,9 @@ class Namelist(ABC):
                     dashed_parts = name.split(dash_type)
                     for i_part, dashed_part in enumerate(dashed_parts):
                         name_capitalized_parts.append(
-                            " ".join(
-                                [
-                                    (dashed_part_name[0].upper() + dashed_part_name[1:])
-                                    if len(dashed_part_name) >= 2
-                                    else dashed_part_name
-                                    for dashed_part_name in dashed_part.split(" ")
-                                ]
-                            )
+                            dashed_part[0].upper() + dashed_part[1:]
+                            if len(dashed_part) >= 2
+                            else dashed_part
                         )
                     # Mao Ce<dash_type>tung -> Mao Ce<dash_type>Tung
                     self._add(dash_type.join(name_capitalized_parts))
@@ -506,6 +520,20 @@ class Namelist(ABC):
                 )  # Mc Collum -> McCollum
         if self._debug_mode:
             self._debug_msg_name_variants(original_name_variants=tmp_name_variants)
+
+    def _abbr_tagged_surname(self, surname_parts: Tuple) -> str:
+        if surname_parts[1][0].upper() == surname_parts[1][0]:
+            return f"{surname_parts[1][0]}.{surname_parts[-1]}"
+        else:
+            lower_surname_parts = regex.match(
+                self.RE_SURNAME_LOWER_ABBR, surname_parts[1]
+            )
+            if lower_surname_parts:
+                return f"{lower_surname_parts.group(1)}{lower_surname_parts.group(2)}.{surname_parts[-1]}"
+            else:
+                logger.warning(
+                    f"Some unexpected error with matching lower surnames in: {surname_parts}"
+                )
 
     def _add_person_variants(
         self, key: str, nametype: str, link: str, type_set: Set[str]
@@ -650,24 +678,41 @@ class Namelist(ABC):
         if surname_parts:
             number = surname_parts.group("number")
             self._add(f"{fn_1st} {number}")
-        # Bach
+        # Bach, Křtitel de la Salle
+        tmp = r"(?<=^|%s)(?P<namewithflag>(?P<namewithpreps_withoutflag>(?:\p{Ll}+#j?[S7]E?%s)*(?P<namewithoutpreps_withoutflag>(?:\p{Lu}')?\p{Lu}\p{L}+))(?P<flagonly>#j?SE?))(?:P<locatios_etc>(?:\p{L}+#j[78L]E?%s)*)" % (self.RE_FLAGNAME_SEPARATOR, self.RE_FLAGNAME_SEPARATOR, self.RE_FLAGNAME_SEPARATOR)
         surnames = regex.findall(
-            r"(?<=^|%s)(?P<namewithflag>(?P<name>(?:\p{Lu}')?\p{Lu}\p{L}+)(?P<flag>#j?SE?))"
-            % self.RE_FLAGNAME_SEPARATOR,
+            r"(?<=^|%s)(?P<namewithflag>(?P<namewithpreps_withoutflag>(?:\p{Ll}+#j?[S78]E?%s)*(?P<namewithoutpreps_withoutflag>(?:\p{Lu}')?\p{Lu}\p{L}+))(?P<flagonly>#j?SE?))(?P<locatios_etc>(?:(?:%s[\p{L}\.']+#j?[78LR]E?)*%s[\p{L}\.']+#j?[LR]E?)*)"
+            % (self.RE_FLAGNAME_SEPARATOR, self.RE_FLAGNAME_SEPARATOR, self.RE_FLAGNAME_SEPARATOR, self.RE_FLAGNAME_SEPARATOR),
             sn_full,
         )
         for surname_tuple in surnames:
             surname_with_flags = surname_tuple[0]
             surname_without_flags = surname_tuple[1]
-            if self.is_capital_dominant(name=surname_without_flags):
-                self._add(surname_with_flags)
+            surname_only_without_flags = surname_tuple[2]
+            surname_suffixes = surname_tuple[-1]
+            if surname_without_flags != surname_only_without_flags:
+                conjunction_flag = "#8"
+                surname_flags = surname_tuple[-2]
+                if self.is_capital_dominant(name=surname_only_without_flags):
+                    self._add("".join([surname_only_without_flags, surname_flags]))
+                if conjunction_flag not in surname_with_flags:
+                    self._add(surname_with_flags)
+                if len(surname_suffixes) > 0:
+                    self._add("".join([surname_only_without_flags, surname_flags, surname_suffixes]))
+                    if conjunction_flag not in surname_with_flags:
+                        self._add("".join([surname_with_flags, surname_suffixes]))
             else:
-                logging.debug(
-                    f"Skipped surname: {surname_with_flags} (frequency: {self._get_debug_frequency_info(name=surname_without_flags)})"
-                )
+                if self.is_capital_dominant(name=surname_without_flags):
+                    self._add(surname_with_flags)
+                    self._add("".join([surname_with_flags, surname_suffixes]))
+                else:
+                    logging.debug(
+                        f"Skipped surname: {surname_with_flags} (frequency: {self._get_debug_frequency_info(name=surname_without_flags)})"
+                    )
+
         # Ernest T. Seton
         if len(surnames) > 1:
-            abbr_surnames = f"{surnames[0][1][0]}.{surnames[0][2]}"
+            abbr_surnames = self._abbr_tagged_surname(surname_parts=surnames[0])
             full_surnames = " ".join(x[0] for x in surnames[1:])
             self._add(
                 "{} {}{}{} {}".format(
@@ -684,7 +729,9 @@ class Namelist(ABC):
                 )
             )
             if len(surnames) > 2:
-                abbr_surnames = " ".join(f"{x[1][0]}.{x[2]}" for x in surnames[:-1])
+                abbr_surnames = " ".join(
+                    self._abbr_tagged_surname(surname_parts=x) for x in surnames[:-1]
+                )
                 full_surnames = surnames[-1][0]
                 self._add(
                     "{} {}{}{} {}".format(
@@ -896,12 +943,13 @@ class Namelist(ABC):
 
     def _get_tagged_person_nameparts(self, key: str) -> Dict:
         nameparts = {}
-        #      ( <firstname>                           ) ( <other firstnames>                                           )( <partonyms>                         )( <unknowns>                           )( <surnames>                   )
         parts = regex.search(
-            r"^(?P<firstname>(?:\p{Lu}')?\p{Lu}\p{L}+%s) (?P<others>(?:(?:(?:\p{Lu}')?\p{L}+#I )*(?:\p{Lu}')?\p{L}+%s )*)(?P<partonyms>(?:\p{Lu}\p{L}+#j[PQ] )*)(?P<unknowns>(?:(?:\p{Lu}')?\p{L}+#I )*)(?P<surnames>(?:\p{Lu}')?(\p{Lu}\p{L}+|[IVXLCDM]+\.)(?<surname_flags>%s).*)$"
+            #      ( <firstname>                           ) ( <other firstnames>                                           )( <partonyms>                         )( <unknowns>                           )( <surnames>                   )
+            r"^(?P<firstname>(?:\p{Lu}')?\p{Lu}\p{L}+%s) (?P<others>(?:(?:(?:\p{Lu}')?\p{L}+#I )*(?:\p{Lu}')?\p{L}+%s )*)(?P<partonyms>(?:\p{Lu}\p{L}+#j[PQ] )*)(?P<unknowns>(?:(?:\p{Lu}')?\p{L}+#I )*)(?P<surnames>(?:\p{Ll}+#j?SE?%s)*(?:\p{Lu}')?(\p{Lu}\p{L}+|[IVXLCDM]+\.)(?<surname_flags>%s).*)$"
             % (
                 self.RE_FLAG_ONLY1ST_FIRSTNAME,
                 self.RE_FLAG_FIRSTNAME,
+                RE_NAMES_SEPARATORS,
                 self.RE_FLAG_SURE_SURNAME,
             ),
             key,
@@ -953,6 +1001,11 @@ class Namelist(ABC):
             if "event" in type_set or "geographical" in type_set:
                 if " " not in key:
                     return True
+<<<<<<< HEAD
+=======
+            elif "person" in type_set and " " in key:
+                return True
+>>>>>>> derived_names
             else:
                 return True
 
